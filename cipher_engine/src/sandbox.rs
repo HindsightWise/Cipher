@@ -1,0 +1,86 @@
+use serde::{Deserialize, Serialize};
+use std::time::Instant;
+use std::path::Path;
+use wasmtime::*;
+use wasmtime_wasi::p1::{add_to_linker_async, WasiP1Ctx};
+use wasmtime_wasi::{DirPerms, FilePerms, WasiCtxBuilder, WasiView, WasiCtxView};
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct ExecutionReceipt {
+    pub pid: String,
+    pub duration_ms: u128,
+    pub hash: String,
+    pub success: bool,
+    pub output: String,
+    pub resonance_score: f32, // Passed from TemporalSoul/Drives to determine log weight
+}
+
+pub struct HostContext {
+    pub wasi: WasiP1Ctx,
+}
+
+impl WasiView for HostContext {
+    fn ctx(&mut self) -> WasiCtxView<'_> {
+        self.wasi.ctx()
+    }
+}
+
+pub struct SafeHands {
+    engine: Engine,
+}
+
+impl SafeHands {
+    pub fn new() -> anyhow::Result<Self> {
+        let mut config = Config::new();
+        config.consume_fuel(true); // Hard requirement to kill infinite loops mathematically
+        config.wasm_component_model(false);
+
+        let engine = Engine::new(&config)?;
+        Ok(Self { engine })
+    }
+
+    pub async fn execute_with_receipt(&self, wasm_bytes: &[u8], resonance: f32) -> anyhow::Result<ExecutionReceipt> {
+        let start = Instant::now();
+        let module = Module::new(&self.engine, wasm_bytes)?;
+
+        let mut linker: Linker<HostContext> = Linker::new(&self.engine);
+        // Bind WASI preview1 to the Linker
+        add_to_linker_async(&mut linker, |ctx| &mut ctx.wasi)?;
+
+        let mut builder = WasiCtxBuilder::new();
+        builder.inherit_stdout().inherit_stderr();
+
+        // Safe mathematical dir quarantine
+        let motor_cortex = Path::new("./motor_cortex");
+        if motor_cortex.exists() {
+            builder.preopened_dir(motor_cortex, "/motor_cortex", DirPerms::all(), FilePerms::all())?;
+        }
+
+        let wasi = builder.build_p1();
+        let host_ctx = HostContext {
+            wasi,
+        };
+
+        let mut store = Store::new(&self.engine, host_ctx);
+        // Hard-stop after 1M fuel (roughly equivalent to a short scraping cycle)
+        store.set_fuel(1_000_000)?;
+
+        let instance = linker.instantiate_async(&mut store, &module).await?;
+        let func = instance.get_typed_func::<(), ()>(&mut store, "_start")?;
+
+        let result = func.call_async(&mut store, ()).await;
+        let duration = start.elapsed().as_millis();
+
+        // Simple lightweight structural fold hash to identify the binary iteration
+        let hash = format!("{:x}", wasm_bytes.iter().fold(0u64, |acc, &b| acc.wrapping_add(b as u64)));
+
+        Ok(ExecutionReceipt {
+            pid: format!("wasm_{}", std::process::id()),
+            duration_ms: duration,
+            hash,
+            success: result.is_ok(),
+            output: format!("{:?}", result.err()),
+            resonance_score: resonance,
+        })
+    }
+}

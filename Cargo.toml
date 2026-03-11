@@ -1,0 +1,8 @@
+[workspace]
+resolver = "2"
+members = [
+    "cipher_core",
+    "cipher_forge",
+    "cipher_simulacrum",
+    "cipher_engine"
+]
