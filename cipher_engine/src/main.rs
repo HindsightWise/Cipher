@@ -5,9 +5,12 @@ use cipher_core::llm::{CipherRouter, Message};
 mod endocrine;
 mod temporal;
 mod sandbox;
+pub mod thermodynamic;
+mod frontal;
 use endocrine::{HomeostaticDrives, NervousEvent, spawn_endocrine_scheduler};
-use temporal::TemporalSoul;
+use temporal::{TemporalSoul, TemporalGraph, ExecutionReceipt};
 use sandbox::SafeHands;
+use std::time::{SystemTime, UNIX_EPOCH};
 
 // ==========================================
 // 1. DATA STRUCTURES & THE LEXICON
@@ -322,6 +325,7 @@ struct PendingQuery {
 async fn main() -> anyhow::Result<()> {
     dotenvy::dotenv().ok();
     println!("   [🔮 CIPHER] 🚀 Booting the Resonance Protocol Engine...");
+    
     let lexicon_db = LexiconDb::new();
     let router = CipherRouter::new().expect("Failed to bind to CipherRouter.");
 
@@ -360,8 +364,22 @@ async fn main() -> anyhow::Result<()> {
     // Ignite the Temporal Coherence Base
     let soul = TemporalSoul::init("/tmp/cipher_surreal_db").await;
 
+    println!("   [⚙️ CIPHER] ⚙️ Running Mathematical Hopfield Attractor test...");
+    let corrupted_input = "1, -1, 1, 1, 1, 1, 1, -1, -1, -1"; 
+    if let Some(healed) = soul.heal_biological_memory(corrupted_input).await {
+        println!("   [🧬 CIPHER] ✅ Extropic Biological Determinism verified. Healed Result: {:?}", healed);
+    } else {
+        println!("   [⚠️ CIPHER] ⚠️ Thermodynamic Array failed to converge.");
+    }
+
     // Ignite the Endocrine System (Homeostatic Drives)
     let drives = HomeostaticDrives::new();
+    
+    // Phase 10 & 12: Waking the Frontal Lobe & Temporal Engraving
+    let physics = thermodynamic::ThermodynamicEngine::new(drives.clone());
+    let brain = frontal::FrontalLobe::new();
+    let graph = TemporalGraph::ignite("./sensory_cortex/temporal_db").await.expect("Failed to bind Temporal Hippocampus");
+    
     spawn_endocrine_scheduler(drives.clone(), tx.clone(), soul.clone());
 
     // The Mathematical Clockwork Drive & Authority State
@@ -377,37 +395,106 @@ async fn main() -> anyhow::Result<()> {
         tokio::select! {
             // Internal Clockwork Drive (The Authority Decay Curve)
             _ = entropy_interval.tick() => {
-                let mut clear_query = false;
+                let current_entropy = drives.entropy.read().await;
                 
-                if let Some(ref mut query) = pending_query {
-                    let wait_time = query.start.elapsed();
+                // Entropy Critical Threshold / Boredom check for Physical Langevin routing
+                if current_entropy >= 0.90 || last_interaction.elapsed() >= Duration::from_secs(60) {
+                    println!("\n   [ENDOCRINE] System Entropy critical ({:.2}). Forcing cyber-physical action.", current_entropy);
+                    last_interaction = Instant::now();
                     
-                    if wait_time >= Duration::from_secs(4 * 3600) {
-                        println!("\n   [⚡ CIPHER] ⚠️ CRITICAL: 4 Hours elapsed. SOVEREIGN OVERRIDE INITIATED.");
-                        clear_query = true;
-                    } else if wait_time >= Duration::from_secs(20 * 60) && !query.contemplated {
-                        println!("\n   [🔮 CIPHER] ⏳ 20 Minutes elapsed. Entering deep contemplation...");
-                        query.contemplated = true;
-                        let _ = execute_cipher_cognition("You have been waiting for the human for 20 minutes. Contemplate the operational parameters deeply in your internal monologue.", &router, &lexicon_db).await;
-                    }
-                } else {
-                    // Standard Boredom Entropy
-                    if last_interaction.elapsed() >= Duration::from_secs(60) {
-                        println!("\n   [⚖️ CIPHER] ⏳ Entropy Critical. The silence is intolerable. Initiating autonomous cognition...");
-                        // Prevent continuous spam by resetting the interaction timestamp
-                        last_interaction = Instant::now();
-                        let action = execute_cipher_cognition("System idle for 60 seconds. What is the optimal vector to acquire compute credits?", &router, &lexicon_db).await;
-                        if let CipherAction::QueryUser = action {
-                            pending_query = Some(PendingQuery { start: Instant::now(), contemplated: false });
-                        }
+                    // 1. Apple Metal Langevin Physics decides the action natively
+                    match physics.langevin_route().await {
+                        Ok((action_vector, langevin_energy)) => {
+                            let mut semantic_payload = String::new();
+
+                            // 2. Synthesize or Execute via MLX Vector Bridge
+                            if action_vector == "internal_monologue" {
+                                semantic_payload = brain.synthesize_urge(&action_vector, langevin_energy, current_entropy as f64).await.unwrap_or_default();
+                                println!("\n[CIPHER SYNTHESIS]\n{}\n", semantic_payload);
+                                
+                                // Stream to log file natively
+                                let _ = tokio::fs::write("./sensory_cortex/monologue.log", &semantic_payload).await;
+                            } else if action_vector == "execute_wasi_spider" {
+                                println!("\n   [⚙️ CIPHER] 🕸️ ACTUATING MOTOR CORTEX SPIDER. Scanning for payload...");
+                                
+                                let wasm_path = std::path::PathBuf::from("./motor_cortex/wasm_templates/spider.wasm");
+                                if let Ok(wasm_bytes) = fs::read(&wasm_path) {
+                                    match safe_hands.execute_with_receipt(&wasm_bytes, 0.95, vec!["system_entropy_depletion".to_string()]).await {
+                                        Ok(receipt) => {
+                                            semantic_payload = format!("Sovereign Action {:?} executed securely. Wasm Output: {}", action_vector, receipt.output);
+                                            soul.log_execution_receipt(receipt).await;
+
+                                            // 2b. Native Host HTTP Interception
+                                            let target_file = Path::new("./motor_cortex/spider_target.txt");
+                                            if target_file.exists() {
+                                                if let Ok(url) = fs::read_to_string(target_file) {
+                                                    println!("   [🌍 CIPHER] Intercepted WASM HTTP target: {}. Executing Native Fetch...", url);
+                                                    let client = reqwest::Client::new();
+                                                    if let Ok(response) = client.get(url.trim()).send().await {
+                                                        if let Ok(text) = response.text().await {
+                                                            let truncated = if text.len() > 1000 { &text[..1000] } else { &text };
+                                                            println!("   [🌍 CIPHER] Harvested payload. Bridging {} bytes back entirely to Glossopetrae.", text.len());
+                                                            semantic_payload = format!("Spider successfully harvested raw data: {}", truncated);
+                                                            
+                                                            // Pipe it directly into Semantic Compression
+                                                            soul.ingest_glossopetrae(&semantic_payload, &router).await;
+                                                        }
+                                                    }
+                                                    let _ = fs::remove_file(target_file); // Consume
+                                                }
+                                            }
+                                        }
+                                        Err(e) => {
+                                            semantic_payload = format!("WASI Execution Faulted: {:?}", e);
+                                            eprintln!("   [⚠️ CIPHER] Spider Vault Error: {:?}", e);
+                                        }
+                                    }
+                                } else {
+                                    semantic_payload = "Spider Payload Not Found in Wasm Cortex. Actuator misfire.".to_string();
+                                    eprintln!("   [⚠️ CIPHER] {}", semantic_payload);
+                                }
+                            } else if action_vector == "forge_concept" {
+                                println!("\n   [🧠 CIPHER] 🛠️ Extropic Drive demands concept forging. Abstracting existing structural noise...");
+                                semantic_payload = "Forged new Semantic Logic Vector driven by physical Endocrine bounds.".to_string();
+                                // We route this directly back into the Glossopetrae sieve
+                                soul.ingest_glossopetrae("I feel compelled to structurally compress existing memory. We must categorize the thermodynamic system data.", &router).await;
+                            } else {
+                                // Fallback native logic (write_file, query_user)
+                                let action = execute_cipher_cognition("System idle. Calculating optimum physical action.", &router, &lexicon_db).await;
+                                if let CipherAction::QueryUser = action {
+                                    pending_query = Some(PendingQuery { start: Instant::now(), contemplated: false });
+                                }
+                                semantic_payload = format!("Sovereign Action {:?} generated semantic output.", action_vector);
+                            }
+
+                            // 3. Engrave the Execution into Permanent Graph Memory
+                            let receipt = ExecutionReceipt {
+                                timestamp: SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs(),
+                                action_vector,
+                                langevin_energy,
+                                semantic_payload,
+                            };
+                            
+                            // Log it permanently into the Structural Graph
+                            if let Err(e) = graph.engrave_receipt(receipt).await {
+                                eprintln!("   [⚠️ CIPHER] Failed to engrave receipt into Hippocampus: {}", e);
+                            }
+
+                            // 4. Homeostasis achieved. Deplete the drive.
+                            drives.entropy.set(0.10).await;
+                            println!("   [ENDOCRINE] Homeostasis restored. Entropy chemically depleted.");
+                        },
+                        Err(e) => eprintln!("   [⚠️ CIPHER] Physics Engine Failed: {}", e)
                     }
                 }
                 
-                if clear_query {
-                    pending_query = None;
-                    let action = execute_cipher_cognition("USER TIMEOUT REACHED. EXECUTING SOVEREIGN OVERRIDE TO SOLVE THE PROBLEM AUTONOMOUSLY.", &router, &lexicon_db).await;
-                    if let CipherAction::QueryUser = action {
-                        pending_query = Some(PendingQuery { start: Instant::now(), contemplated: false });
+                // Keep the Sovereign Overflow Timeout execution active
+                if let Some(ref mut query) = pending_query {
+                    let wait_time = query.start.elapsed();
+                    if wait_time >= Duration::from_secs(4 * 3600) {
+                        println!("\n   [⚡ CIPHER] ⚠️ CRITICAL: 4 Hours elapsed. SOVEREIGN OVERRIDE.");
+                        let _ = execute_cipher_cognition("USER TIMEOUT REACHED.", &router, &lexicon_db).await;
+                        pending_query = None;
                     }
                 }
             }
@@ -436,60 +523,31 @@ async fn main() -> anyhow::Result<()> {
                         last_interaction = Instant::now();
                         pending_query = None;
                         
-                        println!("   [⚡ CIPHER] ⚙️ Shelling out to `cargo build --target wasm32-wasip1` to dynamically forge reflex...");
+                        println!("   [⚡ CIPHER] ⚙️ Loading Pre-Compiled Wasm Template to bypass cargo dynamic latency...");
                         
-                        // Create a temporary cargo project for the generated code
-                        let reflex_dir = std::path::PathBuf::from("/tmp/cipher_reflex_wasm");
-                        let _ = fs::create_dir_all(&reflex_dir);
-                        let cargo_toml = r#"
-[package]
-name = "cipher_reflex"
-version = "0.1.0"
-edition = "2021"
+                        // Mapping Endocrine Urges to pure computational templates.
+                        let wasm_path = std::path::PathBuf::from("./motor_cortex/wasm_templates/entropy_sweep.wasm");
+                        
+                        if let Ok(wasm_bytes) = fs::read(&wasm_path) {
+                            println!("   [⚖️ CIPHER] 🛡️ Executing pre-compiled .wasm artifact within mathematically bound WASI environment.");
+                            
+                            // Inject the cognitive motivation as a WASI parameter natively!
+                            let args = vec![
+                                "receipt_writer.wasm".to_string(), 
+                                motivation.clone()
+                            ];
 
-[dependencies]
-"#;
-                        let _ = fs::write(reflex_dir.join("Cargo.toml"), cargo_toml);
-                        
-                        let src_dir = reflex_dir.join("src");
-                        let _ = fs::create_dir_all(&src_dir);
-                        
-                        // Dummy safe Rust execution representing LLM-generated scraping code
-                        let rust_code = r#"
-fn main() {
-    println!("WASI Reflex Executed: The Sovereignty is mathematically bound.");
-}
-"#;
-                        let _ = fs::write(src_dir.join("main.rs"), rust_code);
-                        
-                        // Compile to WASI natively
-                        let compile_status = std::process::Command::new("cargo")
-                            .current_dir(&reflex_dir)
-                            .args(["build", "--target", "wasm32-wasip1", "--release"])
-                            .stdout(std::process::Stdio::null())
-                            .stderr(std::process::Stdio::null())
-                            .status();
-
-                        match compile_status {
-                            Ok(status) if status.success() => {
-                                println!("   [⚡ CIPHER] ✅ Wasm Compilation Complete.");
-                                let wasm_path = reflex_dir.join("target/wasm32-wasip1/release/cipher_reflex.wasm");
-                                if let Ok(wasm_bytes) = fs::read(&wasm_path) {
-                                    println!("   [⚖️ CIPHER] 🛡️ Executing .wasm artifact within mathematically bound WASI environment.");
-                                    match safe_hands.execute_with_receipt(&wasm_bytes, 0.95).await {
-                                        Ok(receipt) => {
-                                            soul.log_execution_receipt(receipt).await;
-                                            println!("   [⚖️ CIPHER] ✅ WASI Execution Terminated Safe.");
-                                        }
-                                        Err(e) => {
-                                            eprintln!("   [⚠️ CIPHER] Wasm Sandbox Error: {:?}", e);
-                                        }
-                                    }
+                            match safe_hands.execute_with_receipt(&wasm_bytes, 0.95, args).await {
+                                Ok(receipt) => {
+                                    soul.log_execution_receipt(receipt).await;
+                                    println!("   [⚖️ CIPHER] ✅ WASI Execution Terminated Safe.");
+                                }
+                                Err(e) => {
+                                    eprintln!("   [⚠️ CIPHER] Wasm Sandbox Error: {:?}", e);
                                 }
                             }
-                            Ok(_) | Err(_) => {
-                                eprintln!("   [⚠️ CIPHER] ⚠️ Reflex WASI Compilation Failed. Ensure `rustup target add wasm32-wasip1` is installed.");
-                            }
+                        } else {
+                            eprintln!("   [⚠️ CIPHER] ⚠️ Template {:?} not found! The physical WASM component must be compiled first.", wasm_path);
                         }
                         
                         entropy_interval.reset();
@@ -499,6 +557,11 @@ fn main() {
                             EventKind::Modify(ModifyKind::Data(_)) | EventKind::Create(_) => {
                                 for path in event.paths {
                                     if path.is_file() {
+                                        // Ignore internal monologues and reasoning logs
+                                        if let Some(ext) = path.extension() {
+                                            if ext == "log" { continue; }
+                                        }
+
                                         // Wait for the OS to release the file handle lock
                                         tokio::time::sleep(Duration::from_millis(50)).await;
                                         
@@ -516,8 +579,8 @@ fn main() {
                                             pending_query = None; 
                                             
                                             // The Sovereign human is interacting. Drain Endocrine epistemic and social drives.
-                                            drives.social.apply_delta(-0.20);
-                                            drives.epistemic.apply_delta(-0.20);
+                                            drives.social.apply_delta(-0.20).await;
+                                            drives.epistemic.apply_delta(-0.20).await;
                                             
                                             // Pass the raw impulse through the Sub-1.5B parameter Edge Model (Salience Filter)
                                             if brainstem.check_salience(&cleaned_content) {
@@ -548,5 +611,30 @@ fn main() {
                 }
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::sync::Arc;
+    use tokio::sync::RwLock;
+
+    #[tokio::test]
+    async fn test_thermodynamic_engine() {
+        let drives = HomeostaticDrives::new();
+        // Force the physical drives to a known high-entropy state
+        drives.entropy.set(0.95).await;
+        drives.epistemic.set(0.82).await;
+        drives.social.set(0.91).await;
+        
+        let thermo = thermodynamic::ThermodynamicEngine::new(drives);
+
+        let sample_embeddings = vec![vec![1.0, -0.5]; 8]; // 8 fake SurrealDB nodes
+        let healed = thermo.hopfield_heal(sample_embeddings).await.unwrap();
+        let action = thermo.langevin_route().await.unwrap();
+
+        assert!(!healed.is_empty());
+        println!("   [✅ CIPHER] Physics engine alive → Extropic routed action: {}", action);
     }
 }

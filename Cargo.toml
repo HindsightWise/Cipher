@@ -4,5 +4,6 @@ members = [
     "cipher_core",
     "cipher_forge",
     "cipher_simulacrum",
-    "cipher_engine"
+    "cipher_engine",
+    "motor_wasi_src/entropy_sweep"
 ]

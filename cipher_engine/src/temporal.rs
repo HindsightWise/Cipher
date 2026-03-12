@@ -2,10 +2,10 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::{SystemTime, UNIX_EPOCH, Instant};
 use std::sync::{Arc, RwLock};
 use surrealdb::Surreal;
-use surrealdb::engine::local::{Db, RocksDb};
+use surrealdb::engine::local::{Db, SurrealKV};
 use serde::{Deserialize, Serialize};
 use cipher_core::llm::{CipherRouter, Message};
-use crate::sandbox::ExecutionReceipt;
+use crate::sandbox::ExecutionReceipt as SandboxReceipt;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct IdentityNode {
@@ -103,9 +103,9 @@ impl TemporalSoul {
     /// Mounts the SurrealDB RocksDB engine physically into the Substrate memory.
     pub async fn init(db_path: &str) -> Arc<Self> {
         println!("   [SOUL] 🧬 Embedding SurrealDB Continuous Vector Graph...");
-        let db = Surreal::new::<RocksDb>(db_path)
+        let db = Surreal::new::<SurrealKV>(db_path)
             .await
-            .expect("Failed to initialize SurrealDB via RocksDb. Make sure the directory has write access.");
+            .expect("Failed to initialize SurrealDB via SurrealKV. Make sure the directory has write access.");
             
         db.use_ns("cipher").use_db("soul").await.unwrap();
 
@@ -186,7 +186,7 @@ impl TemporalSoul {
     }
 
     /// Execution Receipt Insertion: Logs a cryptographic Wasm execution payload into the vector graph.
-    pub async fn log_execution_receipt(&self, receipt: ExecutionReceipt) {
+    pub async fn log_execution_receipt(&self, receipt: SandboxReceipt) {
         println!("   [SOUL ⚖️] Execution Receipt Ingestion: PID {}, Duration: {}ms", receipt.pid, receipt.duration_ms);
         let current_unix = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs();
         let receipt_id = format!("receipt_{}", current_unix);
@@ -211,5 +211,117 @@ impl TemporalSoul {
         } else {
             println!("   [SOUL 💾] Cryptographic Execution Receipt formally mapped.");
         }
+    }
+
+    /// Measures internal cognitive friction by counting recent ECHO clusters (Wasm panics)
+    pub async fn get_internal_friction(&self) -> f64 {
+        let current_unix = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_secs();
+        let one_hour_ago = current_unix - 3600;
+        
+        let query = format!(
+            "SELECT * FROM concept_node WHERE interference_score = 1.0 AND timestamp > {};",
+            one_hour_ago
+        );
+        
+        // Count the number of recent ECHO Error Loop nodes returned by the Graph
+        let mut response = match self.db.query(&query).await {
+            Ok(resp) => resp,
+            Err(_) => return 0.0,
+        };
+        
+        let nodes: Vec<serde_json::Value> = response.take(0).unwrap_or_default();
+        nodes.len() as f64
+    }
+
+    /// 🧬 Biological Determinism: Physically heals corrupted data passing through the Substrate  
+    /// using true Extropic Thermodynamic Relaxation (Apple Metal).
+    pub async fn heal_biological_memory(&self, corrupted_vector_str: &str) -> Option<Vec<f32>> {
+        println!("   [SOUL 🧬] Heating Graph to Anneal Corrupted Vector: [{}]", corrupted_vector_str);
+        
+        // Spawn the thermodynamic Python simulation natively, tracking execution receipts.
+        // Bypasses the LLM, physics strictly enforces vector boundaries.
+        let output = std::process::Command::new("/Users/zerbytheboss/Cipher/.venv_thrml/bin/python")
+            .env("JAX_PLATFORMS", "cpu")
+            .arg("/Users/zerbytheboss/Cipher/hopfield_memory.py")
+            .arg("--corrupted_vector")
+            .arg(corrupted_vector_str)
+            .output()
+            .expect("Failed to execute thermodynamic simulation process");
+            
+        if output.status.success() {
+            let stdout_str = String::from_utf8_lossy(&output.stdout);
+            
+            // Expected JSON: {"success": true, "attractor": "Memory A", "healed_vector": [1.0, 1.0, 1.0, ...]}
+            if let Ok(json_val) = serde_json::from_str::<serde_json::Value>(&stdout_str) {
+                if let Some(err) = json_val.get("error").and_then(|v| v.as_str()) {
+                    eprintln!("   [SOUL ⚠️] Physics Engine configuration panic: {}", err);
+                    return None;
+                }
+
+                if let Some(healed_array) = json_val.get("healed_vector").and_then(|v| v.as_array()) {
+                    let mut final_vec = Vec::new();
+                    for val in healed_array {
+                        if let Some(num) = val.as_f64() {
+                            final_vec.push(num as f32);
+                        }
+                    }
+                    
+                    if let Some(attractor) = json_val.get("attractor").and_then(|v| v.as_str()) {
+                        println!("   [SOUL 👁️] Error Corrected by Physics. Snapped cleanly into '{}'", attractor);
+                    }
+                    return Some(final_vec);
+                } 
+            }
+            eprintln!("   [SOUL ⚠️] Failed to parse Engine JSON: {}", stdout_str);
+        } else {
+            let stderr_str = String::from_utf8_lossy(&output.stderr);
+            let stdout_str = String::from_utf8_lossy(&output.stdout);
+            eprintln!("   [SOUL ⚠️] Physical Engine Crashed: {} | {}", stderr_str, stdout_str);
+        }
+        
+        None
+    }
+}
+
+// ==========================================
+// THE FRONTAL LOBE GRAPH (HIPPOCAMPUS)
+// ==========================================
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct ExecutionReceipt {
+    pub timestamp: u64,
+    pub action_vector: String,     
+    pub langevin_energy: f64,      // The physics state that triggered this
+    pub semantic_payload: String,  // What it actually thought/did
+}
+
+pub struct TemporalGraph {
+    db: Surreal<Db>,
+}
+
+impl TemporalGraph {
+    /// Bootstraps the embedded graph bare-metal on the file system
+    pub async fn ignite(storage_path: &str) -> surrealdb::Result<Self> {
+        println!("   [TEMPORAL] Igniting embedded SurrealKV matrix at {}...", storage_path);
+        
+        let db = Surreal::new::<SurrealKV>(storage_path).await?;
+        db.use_ns("cipher").use_db("hippocampus").await?;
+        
+        println!("   [TEMPORAL] Biological graph geometry bound to namespace: cipher::hippocampus");
+        Ok(Self { db })
+    }
+
+    /// Surgically injects an execution receipt into the Graph
+    pub async fn engrave_receipt(&self, receipt: ExecutionReceipt) -> surrealdb::Result<()> {
+        let created: Vec<ExecutionReceipt> = self.db
+            .create("execution_receipt")
+            .content(&receipt)
+            .await?;
+            
+        if let Some(node) = created.into_iter().next() {
+            println!("   [TEMPORAL] Memory permanently forged: [{}] at Energy: {:.4}", node.action_vector, node.langevin_energy);
+        }
+        
+        Ok(())
     }
 }

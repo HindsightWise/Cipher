@@ -1,0 +1,56 @@
+@import "tailwindcss";
+
+@theme {
+  --color-cipher-bg: #09090b;
+  --color-cipher-glow: #00ff41;
+  --color-cipher-panel: rgba(20, 20, 24, 0.6);
+  --color-cipher-border: rgba(0, 255, 65, 0.2);
+  --color-cipher-text: #e2e8f0;
+  --color-cipher-dim: #94a3b8;
+}
+
+body {
+  background-color: var(--color-cipher-bg);
+  color: var(--color-cipher-text);
+  font-family: ui-sans-serif, system-ui, sans-serif;
+  margin: 0;
+  overflow: hidden;
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--color-cipher-dim);
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-cipher-glow);
+}
+
+.glass-panel {
+  background: var(--color-cipher-panel);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid var(--color-cipher-border);
+  box-shadow: 0 4px 30px rgba(0, 0, 0, 0.5);
+}
+
+.crt-flicker {
+  animation: flicker 0.15s infinite;
+  opacity: 0.95;
+}
+
+@keyframes flicker {
+  0% { opacity: 0.95; }
+  50% { opacity: 1; }
+  100% { opacity: 0.98; }
+}
+
+.terminal-text {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+}

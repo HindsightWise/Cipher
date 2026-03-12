@@ -39,8 +39,14 @@ impl SafeHands {
         Ok(Self { engine })
     }
 
-    pub async fn execute_with_receipt(&self, wasm_bytes: &[u8], resonance: f32) -> anyhow::Result<ExecutionReceipt> {
+    pub async fn execute_with_receipt(&self, wasm_bytes: &[u8], resonance: f32, args: Vec<String>) -> anyhow::Result<ExecutionReceipt> {
         let start = Instant::now();
+
+        // 🛡️ Pre-Execution Security Bound: ≤ 512 KiB Max Payload
+        if wasm_bytes.len() > 512 * 1024 {
+            anyhow::bail!("Security Violation: Wasm payload exceeds 512 KiB prompt-DoS restriction.");
+        }
+
         let module = Module::new(&self.engine, wasm_bytes)?;
 
         let mut linker: Linker<HostContext> = Linker::new(&self.engine);
@@ -49,6 +55,11 @@ impl SafeHands {
 
         let mut builder = WasiCtxBuilder::new();
         builder.inherit_stdout().inherit_stderr();
+        
+        // Inject parameters dynamically bypassing LLM runtime generation
+        for arg in args {
+            builder.arg(&arg);
+        }
 
         // Safe mathematical dir quarantine
         let motor_cortex = Path::new("./motor_cortex");
