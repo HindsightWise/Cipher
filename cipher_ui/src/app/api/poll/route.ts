@@ -2,9 +2,9 @@ import { NextResponse } from "next/server";
 import * as fs from "fs/promises";
 import * as path from "path";
 
-// Resolving physical paths to Cipher Engine's Cortexes residing in the /tmp/ environment from Phase 22
-const MOTOR_CORTEX_PATH = "/tmp/Cipher_test50/cipher_engine/motor_cortex";
-const SENSORY_CORTEX_PATH = "/tmp/Cipher_test50/cipher_engine/sensory_cortex";
+// Resolving physical paths to Cipher Engine's Cortexes natively
+const MOTOR_CORTEX_PATH = path.resolve(process.cwd(), "../cipher_engine/motor_cortex");
+const SENSORY_CORTEX_PATH = path.resolve(process.cwd(), "../cipher_engine/sensory_cortex");
 
 export async function GET() {
   try {

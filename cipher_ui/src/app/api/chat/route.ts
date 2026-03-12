@@ -3,7 +3,7 @@ import * as fs from "fs/promises";
 import * as path from "path";
 
 // Resolving the physical path to Cipher Engine's unlocked Temporary Sensory Cortex
-const SENSORY_CORTEX_PATH = "/tmp/Cipher_test50/cipher_engine/sensory_cortex";
+const SENSORY_CORTEX_PATH = path.resolve(process.cwd(), "../cipher_engine/sensory_cortex");
 
 export async function POST(req: Request) {
   try {
