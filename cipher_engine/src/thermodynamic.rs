@@ -10,6 +10,9 @@ pub struct ThermodynamicEngine {
 
 impl ThermodynamicEngine {
     pub fn new(drives: Arc<HomeostaticDrives>) -> Self {
+        // Enforce math computations to strictly run on the CPU to prevent
+        // Metal GPU command buffer collisions with the candle-core Brainstem.
+        mlx_rs::Device::set_default(&mlx_rs::Device::cpu());
         Self { drives }
     }
 
