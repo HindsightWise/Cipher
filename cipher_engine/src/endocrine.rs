@@ -68,6 +68,8 @@ pub enum WasmCapability {
 
 pub enum NervousEvent {
     Sensory(notify::Event),
+    MarketData(crate::sensory::MarketDataEvent),
+    TradeExecuted(crate::trading::core::TradeReceipt),
     Urge(String),
     SandboxUrge {
         motivation: String,
@@ -164,6 +166,7 @@ pub fn spawn_endocrine_scheduler(
                     context_fullness: None,
                     learning_subject: None,
                     treasury_balances: None,
+                    alpaca_status: None,
                     socialization_status: None,
                     verified_action: None,
                     follow_up_task: None,

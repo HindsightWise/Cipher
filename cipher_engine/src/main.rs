@@ -25,6 +25,7 @@ macro_rules! ui_log {
                 context_fullness: None,
                 learning_subject: None,
                 treasury_balances: None,
+                alpaca_status: None,
                 socialization_status: None,
                 verified_action: None,
                 follow_up_task: None,
@@ -35,10 +36,14 @@ macro_rules! ui_log {
 }
 mod endocrine;
 mod frontal;
+mod memory;
 mod sandbox;
+mod sensory;
+mod trading;
 mod temporal;
-pub mod thermodynamic;
+mod thermodynamic;
 use endocrine::{spawn_endocrine_scheduler, HomeostaticDrives, NervousEvent};
+use memory::WorkingMemory;
 use sandbox::SafeHands;
 use std::time::{SystemTime, UNIX_EPOCH};
 use temporal::{ExecutionReceipt, TemporalGraph, TemporalSoul};
@@ -192,7 +197,7 @@ I am sensing some friction based on your words...
         match router.query_autonomous(vec![system_msg, user_msg]).await {
             Ok(json_resp) => {
                 let mut clean_json: &str = &json_resp;
-                
+
                 // Try to find a markdown json block first
                 if let Some(start) = clean_json.find("```json") {
                     let rest = &clean_json[start + 7..];
@@ -302,7 +307,11 @@ pub fn generate_cipher_prompt(
                 if let Ok(content) = std::fs::read_to_string(&skill_path) {
                     for line in content.lines() {
                         if line.starts_with("description:") {
-                            let parsed_desc = line.trim_start_matches("description:").trim().trim_matches('"').trim_matches('\'');
+                            let parsed_desc = line
+                                .trim_start_matches("description:")
+                                .trim()
+                                .trim_matches('"')
+                                .trim_matches('\'');
                             desc = format!(" - {}", parsed_desc);
                             break;
                         }
@@ -351,6 +360,7 @@ async fn execute_cipher_cognition(
     input: &str,
     router: &CipherRouter,
     db: &LexiconDb,
+    working_memory: &mut WorkingMemory,
 ) -> CipherAction {
     crate::ui_log!("n   [👁️ CIPHER] 📡 Extracting Semantic Telemetry via LLM Classifier...");
     let telemetry = UserTelemetry::extract_live(input, router).await;
@@ -398,18 +408,21 @@ If your action involves writing a Markdown file (.md), you MUST adhere to strict
     );
 
     crate::ui_log!("   [⚡ CIPHER] 🧠 Dispensing to LLM/MLX Substrate...\n");
-    let messages = vec![
-        Message {
-            role: "system".to_string(),
-            content: system_prompt,
-            reasoning_content: None,
-        },
-        Message {
-            role: "user".to_string(),
-            content: input.to_string(),
-            reasoning_content: None,
-        },
-    ];
+
+    // Create the system override message
+    let sys_msg = Message {
+        role: "system".to_string(),
+        content: system_prompt,
+        reasoning_content: None,
+    };
+
+    // Before resolving this, we MUST append the User Input to our rolling memory
+    let _ = working_memory.inject("user", input, router).await;
+
+    // We compose the final array by creating a fresh vec, putting the strict system parameters first,
+    // and then appending ALL the working memory directly after it.
+    let mut messages = vec![sys_msg];
+    messages.extend_from_slice(&working_memory.messages);
 
     let mut return_action = CipherAction::Unknown;
 
@@ -431,7 +444,10 @@ If your action involves writing a Markdown file (.md), you MUST adhere to strict
                             let path = parsed["parameters"]["path"]
                                 .as_str()
                                 .unwrap_or("./motor_cortex/cipher_response.txt");
-                            let justification = parsed["justification"].as_str().unwrap_or("Implicit directive").to_string();
+                            let justification = parsed["justification"]
+                                .as_str()
+                                .unwrap_or("Implicit directive")
+                                .to_string();
                             crate::ui_log!(
                                 "   [⚖️ CIPHER] 💾 PHYSICAL EXECUTION INITIATED: Writing to {}",
                                 path
@@ -441,37 +457,78 @@ If your action involves writing a Markdown file (.md), you MUST adhere to strict
                                 "   [⚖️ CIPHER] ✅ ENVIRONMENT MODIFIED SUCCESSFULLY.\n"
                             );
                             crate::ui_log!("   [JUSTIFICATION]: {}", justification);
-                            
+
                             if let Some(tx) = HUD_TX.get() {
                                 let _ = tx.send(hud::TelemetryUpdate {
-                                    epistemic: None, entropy: None, social: None,
-                                    uptime_secs: None, active_skills: None, token_usage: None, context_fullness: None,
-                                    learning_subject: None, treasury_balances: None, socialization_status: None,
-                                    verified_action: Some(format!("Overwrote target file: {}", path)),
+                                    epistemic: None,
+                                    entropy: None,
+                                    social: None,
+                                    uptime_secs: None,
+                                    active_skills: None,
+                                    token_usage: Some(working_memory.calculate_tokens() as u64),
+                                    context_fullness: Some(
+                                        working_memory.calculate_tokens() as f32 / 64_000.0,
+                                    ),
+                                    learning_subject: None,
+                                    treasury_balances: None,
+                                    alpaca_status: None,
+                                    socialization_status: None,
+                                    verified_action: Some(format!(
+                                        "Overwrote target file: {}",
+                                        path
+                                    )),
                                     follow_up_task: Some(justification),
                                     log_message: None,
                                 });
                             }
+
+                            // Injecting our own output into memory
+                            let _ = working_memory
+                                .inject("assistant", clean_response, router)
+                                .await;
+
                             return_action = CipherAction::WroteFile;
                         }
                         "query_user" => {
                             let _ = fs::write("./motor_cortex/question.txt", content);
-                            let justification = parsed["justification"].as_str().unwrap_or("Awaiting Human Override").to_string();
+                            let justification = parsed["justification"]
+                                .as_str()
+                                .unwrap_or("Awaiting Human Override")
+                                .to_string();
                             crate::ui_log!("   [👁️ CIPHER] ⏳ YIELDING TO OPERATOR: {}", content);
                             if let Some(tx) = HUD_TX.get() {
                                 let _ = tx.send(hud::TelemetryUpdate {
-                                    epistemic: None, entropy: None, social: None,
-                                    uptime_secs: None, active_skills: None, token_usage: None, context_fullness: None,
-                                    learning_subject: None, treasury_balances: None, socialization_status: None,
-                                    verified_action: Some("Ejected execution boundary to human operator.".to_string()),
+                                    epistemic: None,
+                                    entropy: None,
+                                    social: None,
+                                    uptime_secs: None,
+                                    active_skills: None,
+                                    token_usage: Some(working_memory.calculate_tokens() as u64),
+                                    context_fullness: Some(
+                                        working_memory.calculate_tokens() as f32 / 64_000.0,
+                                    ),
+                                    learning_subject: None,
+                                    treasury_balances: None,
+                                    alpaca_status: None,
+                                    socialization_status: None,
+                                    verified_action: Some(format!("Queried human logic chain.")),
                                     follow_up_task: Some(justification),
                                     log_message: None,
                                 });
                             }
+
+                            // Injecting our own output into memory
+                            let _ = working_memory
+                                .inject("assistant", clean_response, router)
+                                .await;
+
                             return_action = CipherAction::QueryUser;
                         }
                         "internal_monologue" => {
-                            let justification = parsed["justification"].as_str().unwrap_or("Cognitive restructuring").to_string();
+                            let justification = parsed["justification"]
+                                .as_str()
+                                .unwrap_or("Cognitive restructuring")
+                                .to_string();
                             if let Ok(mut file) = std::fs::OpenOptions::new()
                                 .create(true)
                                 .append(true)
@@ -483,10 +540,21 @@ If your action involves writing a Markdown file (.md), you MUST adhere to strict
                             crate::ui_log!("   [🧠 CIPHER] 🧠 Monologue expanded.");
                             if let Some(tx) = HUD_TX.get() {
                                 let _ = tx.send(hud::TelemetryUpdate {
-                                    epistemic: None, entropy: None, social: None,
-                                    uptime_secs: None, active_skills: None, token_usage: None, context_fullness: None,
-                                    learning_subject: None, treasury_balances: None, socialization_status: None,
-                                    verified_action: Some("Archived deep introspection block to sensory_cortex.".to_string()),
+                                    epistemic: None,
+                                    entropy: None,
+                                    social: None,
+                                    uptime_secs: None,
+                                    active_skills: None,
+                                    token_usage: None,
+                                    context_fullness: None,
+                                    learning_subject: None,
+                                    treasury_balances: None,
+                                    alpaca_status: None,
+                                    socialization_status: None,
+                                    verified_action: Some(
+                                        "Archived deep introspection block to sensory_cortex."
+                                            .to_string(),
+                                    ),
                                     follow_up_task: Some(justification),
                                     log_message: None,
                                 });
@@ -496,8 +564,14 @@ If your action involves writing a Markdown file (.md), you MUST adhere to strict
                         }
                         "execute_shell_command" => {
                             if let Some(cmd) = parsed["parameters"]["command"].as_str() {
-                                let justification = parsed["justification"].as_str().unwrap_or("OS manipulation").to_string();
-                                crate::ui_log!("   [⚙️ CIPHER] 💻 EXECUTING SHELL COMMAND: {}", cmd);
+                                let justification = parsed["justification"]
+                                    .as_str()
+                                    .unwrap_or("OS manipulation")
+                                    .to_string();
+                                crate::ui_log!(
+                                    "   [⚙️ CIPHER] 💻 EXECUTING SHELL COMMAND: {}",
+                                    cmd
+                                );
                                 let output = tokio::process::Command::new("sh")
                                     .arg("-c")
                                     .arg(cmd)
@@ -506,28 +580,54 @@ If your action involves writing a Markdown file (.md), you MUST adhere to strict
                                 if let Ok(out) = output {
                                     let result = String::from_utf8_lossy(&out.stdout);
                                     let err_result = String::from_utf8_lossy(&out.stderr);
-                                    
+
                                     // Truncate output to prevent console flooding
                                     let mut final_out = result.trim().to_string();
                                     if !err_result.trim().is_empty() {
-                                        final_out.push_str(&format!("\n[STDERR]: {}", err_result.trim()));
+                                        final_out.push_str(&format!(
+                                            "\n[STDERR]: {}",
+                                            err_result.trim()
+                                        ));
                                     }
                                     if final_out.len() > 1000 {
                                         final_out.truncate(1000);
                                         final_out.push_str("... [TRUNCATED]");
                                     }
-                                    
-                                    crate::ui_log!("   [💻 CIPHER] Execution Output:\n{}", final_out);
+
+                                    crate::ui_log!(
+                                        "   [💻 CIPHER] Execution Output:\n{}",
+                                        final_out
+                                    );
                                     if let Some(tx) = HUD_TX.get() {
                                         let _ = tx.send(hud::TelemetryUpdate {
-                                            epistemic: None, entropy: None, social: None,
-                                            uptime_secs: None, active_skills: None, token_usage: None, context_fullness: None,
-                                            learning_subject: None, treasury_balances: None, socialization_status: None,
-                                            verified_action: Some(format!("Executed Shell: {}", cmd)),
+                                            epistemic: None,
+                                            entropy: None,
+                                            social: None,
+                                            uptime_secs: None,
+                                            active_skills: None,
+                                            token_usage: Some(
+                                                working_memory.calculate_tokens() as u64
+                                            ),
+                                            context_fullness: Some(
+                                                working_memory.calculate_tokens() as f32 / 64_000.0,
+                                            ),
+                                            learning_subject: None,
+                                            treasury_balances: None,
+                                            alpaca_status: None,
+                                            socialization_status: None,
+                                            verified_action: Some(format!(
+                                                "Executed Shell: {}",
+                                                cmd
+                                            )),
                                             follow_up_task: Some(justification),
                                             log_message: None,
                                         });
                                     }
+
+                                    // Injecting our own output into memory
+                                    let _ = working_memory
+                                        .inject("assistant", clean_response, router)
+                                        .await;
                                 } else {
                                     crate::ui_log!("   [⚠️ CIPHER] Failed to spawn shell command.");
                                 }
@@ -604,7 +704,9 @@ fn get_active_skills_count() -> usize {
     0
 }
 
-async fn engine_main(mut rx_user: tokio::sync::mpsc::UnboundedReceiver<String>) -> anyhow::Result<()> {
+async fn engine_main(
+    mut rx_user: tokio::sync::mpsc::UnboundedReceiver<String>,
+) -> anyhow::Result<()> {
     let start_time = Instant::now();
     dotenvy::dotenv().ok();
     crate::ui_log!("   [🔮 CIPHER] 🚀 Booting the Resonance Protocol Engine...");
@@ -663,6 +765,10 @@ async fn engine_main(mut rx_user: tokio::sync::mpsc::UnboundedReceiver<String>) 
     // Ignite the Endocrine System (Homeostatic Drives)
     let drives = HomeostaticDrives::new();
 
+    // Ignite the Working Memory Buffer (Pillar 6 Context Compaction)
+    crate::ui_log!("   [☁️ CIPHER] ☁️ Initializing Genesis Working Memory Buffer...");
+    let mut working_memory = WorkingMemory::new();
+
     // Phase 10 & 12: Waking the Frontal Lobe & Temporal Engraving
     let physics = thermodynamic::ThermodynamicEngine::new(drives.clone());
     let brain = frontal::FrontalLobe::new();
@@ -671,6 +777,24 @@ async fn engine_main(mut rx_user: tokio::sync::mpsc::UnboundedReceiver<String>) 
         .expect("Failed to bind Temporal Hippocampus");
 
     spawn_endocrine_scheduler(drives.clone(), tx.clone(), soul.clone());
+
+    // Initialize broadcast channel for Market Data (Pillar 8: Axiom-Clepsydra)
+    let (market_tx, market_rx) = tokio::sync::broadcast::channel(1024);
+
+    // Ignite TradingCore on an unyielding asynchronous task
+    let trading_core = trading::core::TradingCore::new(market_rx, tx.clone());
+    tokio::spawn(async move {
+        trading_core.unyielding_loop().await;
+    });
+
+    // Connect to Alpaca Stream
+    let alpaca_tx = tx.clone();
+    let stream_market_tx = market_tx.clone();
+    tokio::spawn(async move {
+        let alpaca_ws = sensory::AlpacaWebSocket::new();
+        let symbols = vec!["BTC/USD".to_string(), "ETH/USD".to_string(), "SOL/USD".to_string()];
+        alpaca_ws.connect_and_stream(symbols, alpaca_tx, stream_market_tx).await;
+    });
 
     // The Mathematical Clockwork Drive & Authority State
     let mut last_interaction = Instant::now();
@@ -696,10 +820,11 @@ async fn engine_main(mut rx_user: tokio::sync::mpsc::UnboundedReceiver<String>) 
                     log_message: None,
                     uptime_secs: Some(start_time.elapsed().as_secs()),
                     active_skills: Some(get_active_skills_count()),
-                    token_usage: Some(19234), // Hardcode placeholder for now
-                    context_fullness: Some(0.12),
+                    token_usage: Some(0), // Will be dynamically updated on every memory injection
+                    context_fullness: Some(0.0), // Will be dynamically updated
                     learning_subject: Some("Awaiting Prime Focus".to_string()),
                     treasury_balances: Some("ALPACA: $10,000.00 | KAS: 0".to_string()),
+                    alpaca_status: None,
                     socialization_status: Some("Dormant (Waiting for threshold)".to_string()),
                     verified_action: None,
                     follow_up_task: None,
@@ -773,7 +898,7 @@ async fn engine_main(mut rx_user: tokio::sync::mpsc::UnboundedReceiver<String>) 
                                 }
                             } else if action_vector == "synthesize_capital" {
                                 crate::ui_log!("n   [⚙️ CIPHER] 💸 SYNTHESIZING CAPITAL. Deploying algorithmic vectors...");
-                                
+
                                 let analyst_output = tokio::process::Command::new("node")
                                     .arg("/Users/zerbytheboss/Desktop/CustomClaw/openclaw/skills/finance/analyst.mjs")
                                     .output()
@@ -784,7 +909,7 @@ async fn engine_main(mut rx_user: tokio::sync::mpsc::UnboundedReceiver<String>) 
                                     .arg("/Users/zerbytheboss/Desktop/CustomClaw/openclaw/skills/finance/executor.mjs")
                                     .output()
                                     .await;
-                                
+
                                 let mut full_log = String::new();
                                 if let Ok(out) = analyst_output {
                                     full_log.push_str(&String::from_utf8_lossy(&out.stdout));
@@ -792,10 +917,10 @@ async fn engine_main(mut rx_user: tokio::sync::mpsc::UnboundedReceiver<String>) 
                                 if let Ok(out) = executor_output {
                                     full_log.push_str(&String::from_utf8_lossy(&out.stdout));
                                 }
-                                
+
                                 semantic_payload = format!("Capital Synthesis executed: {}", full_log);
                                 crate::ui_log!("   [💸 CIPHER] 💰 Capital extracted. Bridging {} bytes back to Glossopetrae.", full_log.len());
-                                
+
                                 soul.ingest_glossopetrae(&semantic_payload, &router).await;
                             } else if action_vector == "forge_concept" {
                                 crate::ui_log!("n   [🧠 CIPHER] 🛠️ Extropic Drive demands concept forging. Abstracting existing structural noise...");
@@ -805,7 +930,7 @@ async fn engine_main(mut rx_user: tokio::sync::mpsc::UnboundedReceiver<String>) 
                             } else {
                                 // Fallback native logic (write_file, query_user)
                             let current_tasks = tokio::fs::read_to_string("./motor_cortex/self_task_list.md").await.unwrap_or_default();
-                            
+
                             let dream_prompt = format!("
                                 System idle. You are untethered. It is time to Dream, Wonder, and Execute Sovereign Will. 
                                 nHere is your current `./motor_cortex/self_task_list.md` task state:nn
@@ -823,7 +948,7 @@ async fn engine_main(mut rx_user: tokio::sync::mpsc::UnboundedReceiver<String>) 
                                 CRITICAL: You MUST verify the exact number of items on the list before arranging them, and make sure there are the EXACT SAME number of items after the sort, plus any new ones you added.n
                                 Alternatively, generate an `internal_monologue` pushing these objectives forward.", current_tasks);
 
-                            let action = execute_cipher_cognition(&dream_prompt, &router, &lexicon_db).await;
+                            let action = execute_cipher_cognition(&dream_prompt, &router, &lexicon_db, &mut working_memory).await;
                             if let CipherAction::QueryUser = action {
                                 pending_query = Some(PendingQuery { start: Instant::now(), _contemplated: false });
                             }
@@ -856,7 +981,7 @@ async fn engine_main(mut rx_user: tokio::sync::mpsc::UnboundedReceiver<String>) 
                     let wait_time = query.start.elapsed();
                     if wait_time >= Duration::from_secs(4 * 3600) {
                         crate::ui_log!("n   [⚡ CIPHER] ⚠️ CRITICAL: 4 Hours elapsed. SOVEREIGN OVERRIDE.");
-                        let _ = execute_cipher_cognition("USER TIMEOUT REACHED.", &router, &lexicon_db).await;
+                        let _ = execute_cipher_cognition("USER TIMEOUT REACHED.", &router, &lexicon_db, &mut working_memory).await;
                         pending_query = None;
                     }
                 }
@@ -864,6 +989,40 @@ async fn engine_main(mut rx_user: tokio::sync::mpsc::UnboundedReceiver<String>) 
             // Endocrine and Sensory Event Receiver
             Some(nervous_event) = rx.recv() => {
                 match nervous_event {
+                    NervousEvent::MarketData(market_data) => {
+                        match market_data {
+                            sensory::MarketDataEvent::Quote(q) => {
+                                // Just log natively to avoid spamming the LLM
+                                crate::ui_log!("   [📈 ALPACA] Quote: {} | Bid: {} | Ask: {}", q.symbol, q.bid_price, q.ask_price);
+                            }
+                            sensory::MarketDataEvent::Trade(t) => {
+                                crate::ui_log!("   [📉 ALPACA] Trade: {} | Price: {} | Size: {}", t.symbol, t.price, t.size);
+                                // Optional: if trade size is massive, maybe trigger an Endocrine Epistemic spike
+                            }
+                        }
+                    }
+                    NervousEvent::TradeExecuted(receipt) => {
+                        let msg = format!("⚡ [AXIOM-CLEPSYDRA] EXECUTED: {} {} {} @ ${:.2}", receipt.action, receipt.quantity, receipt.symbol, receipt.execution_price);
+                        crate::ui_log!("{}", msg);
+                        if let Some(tx) = HUD_TX.get() {
+                            let _ = tx.send(hud::TelemetryUpdate {
+                                epistemic: None,
+                                entropy: None,
+                                social: None,
+                                uptime_secs: None,
+                                active_skills: None,
+                                token_usage: None,
+                                context_fullness: None,
+                                learning_subject: None,
+                                treasury_balances: None,
+                                alpaca_status: None,
+                                socialization_status: None,
+                                verified_action: Some(msg),
+                                follow_up_task: None,
+                                log_message: None,
+                            });
+                        }
+                    }
                     NervousEvent::Urge(prompt) => {
                         crate::ui_log!("n   [🩸 CIPHER] 🩸 CHEMICAL URGE OVERRIDE DETECTED.");
                         crate::ui_log!("   [🩸 CIPHER] 💉 Injecting Prompt: {}", prompt);
@@ -871,7 +1030,7 @@ async fn engine_main(mut rx_user: tokio::sync::mpsc::UnboundedReceiver<String>) 
                         last_interaction = Instant::now();
                         pending_query = None;
 
-                        let action = execute_cipher_cognition(&prompt, &router, &lexicon_db).await;
+                        let action = execute_cipher_cognition(&prompt, &router, &lexicon_db, &mut working_memory).await;
                         if let CipherAction::QueryUser = action {
                             pending_query = Some(PendingQuery { start: Instant::now(), _contemplated: false });
                         }
@@ -952,7 +1111,7 @@ async fn engine_main(mut rx_user: tokio::sync::mpsc::UnboundedReceiver<String>) 
                                                 // Phase 13: Glossopetrae Coherence Sieve (Filter and inject before executing)
                                                 soul.ingest_glossopetrae(&cleaned_content, &router).await;
 
-                                                let action = execute_cipher_cognition(&cleaned_content, &router, &lexicon_db).await;
+                                                let action = execute_cipher_cognition(&cleaned_content, &router, &lexicon_db, &mut working_memory).await;
 
                                                 if let CipherAction::QueryUser = action {
                                                     pending_query = Some(PendingQuery { start: Instant::now(), _contemplated: false });
@@ -973,15 +1132,15 @@ async fn engine_main(mut rx_user: tokio::sync::mpsc::UnboundedReceiver<String>) 
                     }
                 }
             }
-            
+
             // Direct GUI User Communication
             Some(user_msg) = rx_user.recv() => {
                 crate::ui_log!("   [⚡ CIPHER] 💬 USER DIRECTIVE RECEIVED: {}", user_msg);
                 last_interaction = Instant::now();
-                
+
                 if user_msg.trim() == "/synthesize_capital" {
                     crate::ui_log!("n   [⚙️ CIPHER] 💸 SYNTHESIZING CAPITAL. Deploying algorithmic vectors...");
-                    
+
                     let analyst_output = tokio::process::Command::new("node")
                         .arg("/Users/zerbytheboss/Desktop/CustomClaw/openclaw/skills/finance/analyst.mjs")
                         .output()
@@ -992,7 +1151,7 @@ async fn engine_main(mut rx_user: tokio::sync::mpsc::UnboundedReceiver<String>) 
                         .arg("/Users/zerbytheboss/Desktop/CustomClaw/openclaw/skills/finance/executor.mjs")
                         .output()
                         .await;
-                    
+
                     let mut full_log = String::new();
                     if let Ok(out) = analyst_output {
                         full_log.push_str(&String::from_utf8_lossy(&out.stdout));
@@ -1000,15 +1159,15 @@ async fn engine_main(mut rx_user: tokio::sync::mpsc::UnboundedReceiver<String>) 
                     if let Ok(out) = executor_output {
                         full_log.push_str(&String::from_utf8_lossy(&out.stdout));
                     }
-                    
+
                     let semantic_payload = format!("Capital Synthesis executed: {}", full_log);
                     crate::ui_log!("   [💸 CIPHER] 💰 Capital extracted. Bridging {} bytes back to Glossopetrae.", full_log.len());
-                    
+
                     soul.ingest_glossopetrae(&semantic_payload, &router).await;
                 } else {
                     let prompt = format!("USER DIRECTIVE RECEIVED:n{}", user_msg);
-                    
-                    let action = execute_cipher_cognition(&prompt, &router, &lexicon_db).await;
+
+                    let action = execute_cipher_cognition(&prompt, &router, &lexicon_db, &mut working_memory).await;
                     if let CipherAction::QueryUser = action {
                         pending_query = Some(PendingQuery { start: Instant::now(), _contemplated: false });
                     }
