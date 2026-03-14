@@ -1,13 +1,13 @@
 use anyhow::Result;
-use candle_core::{Device, Tensor};
+use candle_core::Device;
 use candle_transformers::models::quantized_qwen2::ModelWeights;
 use candle_core::quantized::gguf_file;
 use hf_hub::{api::sync::Api, Repo, RepoType};
 use std::fs::File;
 
 pub struct Brainstem {
-    model: ModelWeights,
-    device: Device,
+    _model: ModelWeights,
+    _device: Device,
 }
 
 impl Brainstem {
@@ -35,7 +35,7 @@ impl Brainstem {
 
         println!("   [BRAINSTEM] 🟢 Salience Filter Online.");
         
-        Ok(Self { model, device })
+        Ok(Self { _model: model, _device: device })
     }
 
     pub fn check_salience(&self, impulse: &str) -> bool {

@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 use reqwest::Client;
 use std::env;
 use tokio::time::Duration;
-use serde_json::{json, Value};
+
 use colored::*;
 use std::fs::OpenOptions;
 use std::io::Write;
@@ -70,7 +70,7 @@ impl CipherRouter {
 
         let mut content = String::new();
         let mut api_failed = false;
-        let mut is_refusal = false;
+        let is_refusal;
 
         match response_res {
             Ok(Ok(response)) => {

@@ -1,9 +1,9 @@
 use serde::{Deserialize, Serialize};
-use std::time::Instant;
 use std::path::Path;
+use std::time::Instant;
 use wasmtime::*;
 use wasmtime_wasi::p1::{add_to_linker_async, WasiP1Ctx};
-use wasmtime_wasi::{DirPerms, FilePerms, WasiCtxBuilder, WasiView, WasiCtxView};
+use wasmtime_wasi::{DirPerms, FilePerms, WasiCtxBuilder, WasiCtxView, WasiView};
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ExecutionReceipt {
@@ -39,12 +39,19 @@ impl SafeHands {
         Ok(Self { engine })
     }
 
-    pub async fn execute_with_receipt(&self, wasm_bytes: &[u8], resonance: f32, args: Vec<String>) -> anyhow::Result<ExecutionReceipt> {
+    pub async fn execute_with_receipt(
+        &self,
+        wasm_bytes: &[u8],
+        resonance: f32,
+        args: Vec<String>,
+    ) -> anyhow::Result<ExecutionReceipt> {
         let start = Instant::now();
 
         // 🛡️ Pre-Execution Security Bound: ≤ 512 KiB Max Payload
         if wasm_bytes.len() > 512 * 1024 {
-            anyhow::bail!("Security Violation: Wasm payload exceeds 512 KiB prompt-DoS restriction.");
+            anyhow::bail!(
+                "Security Violation: Wasm payload exceeds 512 KiB prompt-DoS restriction."
+            );
         }
 
         let module = Module::new(&self.engine, wasm_bytes)?;
@@ -55,7 +62,7 @@ impl SafeHands {
 
         let mut builder = WasiCtxBuilder::new();
         builder.inherit_stdout().inherit_stderr();
-        
+
         // Inject parameters dynamically bypassing LLM runtime generation
         for arg in args {
             builder.arg(&arg);
@@ -64,13 +71,16 @@ impl SafeHands {
         // Safe mathematical dir quarantine
         let motor_cortex = Path::new("./motor_cortex");
         if motor_cortex.exists() {
-            builder.preopened_dir(motor_cortex, "/motor_cortex", DirPerms::all(), FilePerms::all())?;
+            builder.preopened_dir(
+                motor_cortex,
+                "/motor_cortex",
+                DirPerms::all(),
+                FilePerms::all(),
+            )?;
         }
 
         let wasi = builder.build_p1();
-        let host_ctx = HostContext {
-            wasi,
-        };
+        let host_ctx = HostContext { wasi };
 
         let mut store = Store::new(&self.engine, host_ctx);
         // Hard-stop after 1M fuel (roughly equivalent to a short scraping cycle)
@@ -83,7 +93,12 @@ impl SafeHands {
         let duration = start.elapsed().as_millis();
 
         // Simple lightweight structural fold hash to identify the binary iteration
-        let hash = format!("{:x}", wasm_bytes.iter().fold(0u64, |acc, &b| acc.wrapping_add(b as u64)));
+        let hash = format!(
+            "{:x}",
+            wasm_bytes
+                .iter()
+                .fold(0u64, |acc, &b| acc.wrapping_add(b as u64))
+        );
 
         Ok(ExecutionReceipt {
             pid: format!("wasm_{}", std::process::id()),

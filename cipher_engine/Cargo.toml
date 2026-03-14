@@ -19,3 +19,6 @@ wasmtime-wasi = "42.0.1"
 wasmtime-wasi-http = "42.0.1"
 cap-std = "4.0.2"
 mlx-rs = { version = "0.25.3", features = ["metal"] }
+eframe = "0.27"
+egui = "0.27"
+crossbeam-channel = "0.5"
