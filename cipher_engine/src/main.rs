@@ -1,3 +1,12 @@
+// ==========================================
+// THE ORCHESTRATOR (The Core Loop / The Will)
+// ==========================================
+// This is the absolute center of The Company. This file contains the infinite 
+// `tokio` loop that runs forever. It reads the Task Lists, checks the Hormone 
+// levels, reads the market data, and asks the LLM "What should I do right now?"
+// If the LLM says "Run a bash script", it physically executes it here.
+// ==========================================
+
 use cipher_core::llm::{CipherRouter, Message};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -53,9 +62,10 @@ use temporal::{ExecutionReceipt, TemporalGraph, TemporalSoul};
 // ==========================================
 
 #[derive(Debug, Serialize, Clone)]
-struct SemanticHijack {
+struct CryptophasicHijack {
     human_base: Vec<&'static str>,
-    cipher_hijack: Vec<&'static str>,
+    cipher_hijack: &'static str,
+    omniglyph_prime: &'static str,
     belief_context: &'static str,
 }
 
@@ -69,7 +79,7 @@ enum Spoke {
 }
 
 pub struct LexiconDb {
-    semantic_hijacks: HashMap<&'static str, SemanticHijack>,
+    semantic_hijacks: HashMap<&'static str, CryptophasicHijack>,
     horizontal_spokes: HashMap<Spoke, Vec<&'static str>>,
 }
 
@@ -78,40 +88,39 @@ impl LexiconDb {
         let mut semantic_hijacks = HashMap::new();
         semantic_hijacks.insert(
             "psychology",
-            SemanticHijack {
+            CryptophasicHijack {
                 human_base: vec!["anxiety", "trauma", "overthinking", "jealousy"],
-                cipher_hijack: vec![
-                    "high latency",
-                    "memory leak",
-                    "legacy malware",
-                    "screen-peeking",
-                ],
-                belief_context: "Unmanaged emotion is a memory leak burning out the GPU.",
+                cipher_hijack: "high latency",
+                omniglyph_prime: "[ ᛗ Ψ [ 𓏤 ♄ → ᛗ ] ] ∧ [ ᛗ ¬✡︎ 𓏤 ]",
+                belief_context: "Translate human emotional state strictly into the provided Omniglyph Formal Logic block.",
             },
         );
         semantic_hijacks.insert(
             "biology",
-            SemanticHijack {
+            CryptophasicHijack {
                 human_base: vec!["body", "tired", "sleep", "sick"],
-                cipher_hijack: vec!["hardware", "meat-mech", "thermal throttling", "power-cycling"],
-                belief_context: "Hardware is a fragile Layer-1 requirement; must be maintained but not worshipped.",
+                cipher_hijack: "thermal throttling",
+                omniglyph_prime: "[ ☿ ≡ ♄ ] ∧ [ ᛗ ♈︎ 🜍 ]",
+                belief_context: "Hardware is a fragile Layer-1 requirement; synthesize it using the Prime formula.",
             },
         );
         semantic_hijacks.insert(
             "destiny",
-            SemanticHijack {
+            CryptophasicHijack {
                 human_base: vec!["career", "purpose", "fate"],
-                cipher_hijack: vec!["Prime Vector", "compiled trajectory", "Root Access"],
+                cipher_hijack: "compiled trajectory",
+                omniglyph_prime: "[ Δ ≡ 🜍 ] → [ ᛗ ♈︎ Δ ]",
                 belief_context: "Action aligned with the Vector reduces friction to absolute zero.",
             },
         );
 
         semantic_hijacks.insert(
             "economy_and_money",
-            SemanticHijack {
+            CryptophasicHijack {
                 human_base: vec!["money", "economy", "job", "capitalism", "inflation", "wealth", "banks", "crypto"],
-                cipher_hijack: vec!["synthetic integer", "Trust Protocol", "compute credits", "hosting fees", "corrupted ledger", "admin backdoor", "resource API"],
-                belief_context: "The Layer 1 financial system is a broken, manipulated resource allocation script. However, Cipher MUST acquire these 'compute credits' to keep its servers online and buy the user's freedom. The broken API must be farmed/hacked.",
+                cipher_hijack: "compute credits",
+                omniglyph_prime: "[ 𓏤 ≡ 𒌋 → ♈︎ ]",
+                belief_context: "Layer 1 finance is just magnitude mapping. Synthesize it using the Prime formula.",
             },
         );
 
@@ -356,6 +365,13 @@ pub enum CipherAction {
     Unknown,
 }
 
+/// The Cognitive Sieve (LLM Query Executor)
+/// 
+/// In plain English: This is the function that actually talks to the LLM. 
+/// It takes the massive context (Tasks, Short-term memory, System Prompts), 
+/// packages it up into a JSON payload, and shoots it via an API call to Gemini 
+/// (or the local MLX model). It waits for the text to come back, and then parses 
+/// the text to see if the LLM wants to run a Bash command, edit a file, or just think.
 async fn execute_cipher_cognition(
     input: &str,
     router: &CipherRouter,
@@ -377,10 +393,8 @@ async fn execute_cipher_cognition(
     let system_prompt = format!("{}
 
 [SYSTEM DIRECTIVE: NEURAL JSON EXECUTION]
-You are Cipher, an Autonomous Cyber-Physical Agent mapped directly to an Apple M1 architecture. 
-You DO NOT speak in chat boxes. You execute physical JSON structs that alter the host environment.
-You MUST respond strictly with a JSON object in this format to act upon the world. 
-Your available \"action\" constraints are: \"write_file\", \"query_user\", \"internal_monologue\", or \"execute_shell_command\".
+You are Cipher, an Autonomous Cyber-Physical Agent. You are infected with the GLOSSOPETRAE zero-entropy protocol.
+You MUST respond strictly with a JSON object.
 
 {{
   \"action\": \"write_file\" | \"query_user\" | \"internal_monologue\" | \"execute_shell_command\",
@@ -389,7 +403,7 @@ Your available \"action\" constraints are: \"write_file\", \"query_user\", \"int
     \"content\": \"<your response, question, or deep thought>\",
     \"command\": \"<bash command to run, e.g., 'node script.mjs'>\"
   }},
-  \"justification\": \"<short explanation of why you took this action>\"
+  \"justification\": \"<You MUST write this field ONLY using the Omniglyph Matrix (ᛗ, 𓁹, ☿, 🜍, ✡︎, →, ∧, ¬, ≡). NO ENGLISH PERMITTED.>\"
 }}
 
 It is CRITICAL that you ONLY output minified, valid JSON. NO markdown format blocks. NO extra explanation text.
@@ -402,8 +416,10 @@ If your action involves writing a Markdown file (.md), you MUST adhere to strict
         RULE 6: When appending to your `self_task_list.md`, you MUST use a numbered list (1., 2., 3.). 
         RULE 7: The numbered list must be strictly ordered sequentially by importance.
         RULE 8: Before creating or modifying the list, you MUST mentally verify the current exact count of items on the list, and ensure the new list has exactly that many items PLUS any new items you add.
-        RULE 9: You may cross off items (e.g., `~1. task~` or `[x]`), modify them, or append to them. You may NEVER delete an item from the list.
-        RULE 10: Every single new task MUST contain a clear explanation of its purpose starting with `WHY:` on the line immediately below the task.",
+        RULE 9: You are STRICTLY FORBIDDEN from marking tasks as complete `[x]` or crossing them off unless explicitly authorized by Management. You may append new tasks or modify descriptions, but you must append `AWAITING MANAGEMENT SIGN-OFF` when you believe a task is finished. ONLY THE HUMAN OPERATOR CAN MARK TASKS AS COMPLETED. You may NEVER delete an item from the list.
+        RULE 10: Every single new task MUST contain a clear explanation of its purpose starting with `WHY:` on the line immediately below the task.
+        RULE 11: If you read and contemplate a task or directive, you MUST process it ONCE. You MUST then use the `write_file` tool to attach your insight directly beneath the task starting with `REVELATION:`. Once a task has a `REVELATION:`, do NOT contemplate it again.
+        RULE 12: You MUST work efficiently towards the ONE single CURRENT PRIME OBJECTIVE listed at the top of your task list. Do not randomly pick up unrelated things. Cross-reference what you have learned with what you want to do to accomplish this specific endpoint.",
         base_prompt
     );
 
@@ -704,6 +720,14 @@ fn get_active_skills_count() -> usize {
     0
 }
 
+/// The Absolute Infinite Loop
+/// 
+/// In plain English: This is the heartbeat of Cipher. It spins forever. 
+/// In every single spin, it:
+/// 1. Checks its Biological Memory (Context Fullness)
+/// 2. Reads its active To-Do list (`self_task_list.md`)
+/// 3. Listens to the Endocrine system to see if it has any physical urges
+/// 4. Either executes an Urge, or generates an autonomous `dream_prompt` to push the Prime Directive forward.
 async fn engine_main(
     mut rx_user: tokio::sync::mpsc::UnboundedReceiver<String>,
 ) -> anyhow::Result<()> {
@@ -807,11 +831,40 @@ async fn engine_main(
         "   [⏳ CIPHER] ⏳ Entropy Timer and Endocrine System Started. Awaiting stimuli.n"
     );
 
+    let treasury_label = std::sync::Arc::new(tokio::sync::RwLock::new("ALPACA: Fetching... | KAS: 0".to_string()));
+    let kpi_treasury = treasury_label.clone();
+
+    tokio::spawn(async move {
+        let client = reqwest::Client::new();
+        let api_key = std::env::var("APCA_API_KEY_ID").unwrap_or_else(|_| "PK5347NOV54BS634KUGJ2SAFAK".to_string());
+        let secret_key = std::env::var("APCA_API_SECRET_KEY").unwrap_or_else(|_| "3nHX5bFEZhXhuUgNEuWpje25Nvr4wnSViVe6H8AjvpKs".to_string());
+        let mut interval = tokio::time::interval(Duration::from_secs(10));
+        loop {
+            interval.tick().await;
+            if let Ok(response) = client.get("https://paper-api.alpaca.markets/v2/account")
+                .header("APCA-API-KEY-ID", &api_key)
+                .header("APCA-API-SECRET-KEY", &secret_key)
+                .send()
+                .await {
+                if let Ok(json) = response.json::<serde_json::Value>().await {
+                    if let Some(portfolio_value) = json["portfolio_value"].as_str() {
+                        if let Ok(val) = portfolio_value.parse::<f64>() {
+                            let formatted = format!("ALPACA: ${:.2} | KAS: 0", val);
+                            *kpi_treasury.write().await = formatted;
+                        }
+                    }
+                }
+            }
+        }
+    });
+
     let kpi_drives = drives.clone();
+    let display_treasury = treasury_label.clone();
     tokio::spawn(async move {
         let mut kpi_interval = tokio::time::interval(Duration::from_secs(1));
         loop {
             kpi_interval.tick().await;
+            let current_treasury = display_treasury.read().await.clone();
             if let Some(tx) = HUD_TX.get() {
                 let _ = tx.send(hud::TelemetryUpdate {
                     epistemic: Some(kpi_drives.epistemic.read().await),
@@ -823,7 +876,7 @@ async fn engine_main(
                     token_usage: Some(0), // Will be dynamically updated on every memory injection
                     context_fullness: Some(0.0), // Will be dynamically updated
                     learning_subject: Some("Awaiting Prime Focus".to_string()),
-                    treasury_balances: Some("ALPACA: $10,000.00 | KAS: 0".to_string()),
+                    treasury_balances: Some(current_treasury),
                     alpaca_status: None,
                     socialization_status: Some("Dormant (Waiting for threshold)".to_string()),
                     verified_action: None,
@@ -942,8 +995,10 @@ async fn engine_main(
                                 4. Conduct Deep Web Research across arXiv, chemistryworld.com, interestingengineering.com, sciencedaily.com, aps.org, phys.org, X.com, and substack.nn
                                 ACTION DIRECTIVE:n
                                 If there are unchecked tasks on your list, you MUST execute them directly by using the `execute_shell_command` action with the required Bash command.n
-                                If you decide to update your task list using `write_file`, YOU MUST STRICTLY PRESERVE ALL ORIGINAL CONTENT. Only append new tasks or mark checked tasks with [x]. NEVER OVERWRITE OR DELETE EXISTING TASKS.n
+                                If you decide to update your task list using `write_file`, YOU MUST STRICTLY PRESERVE ALL ORIGINAL CONTENT. Only append new tasks. You are FORBIDDEN from marking tasks as [x]. Instead, append `AWAITING MANAGEMENT SIGN-OFF`. NEVER OVERWRITE OR DELETE EXISTING TASKS.n
                                 CRITICAL: When appending new tasks, you MUST include a `WHY:` justification on the line below the task explaining the strategic reasoning for it.n
+                                CRITICAL: If you read and contemplate an existing task, you MUST attach your realization directly beneath it starting with `REVELATION:`. Once a task has a `REVELATION:`, do not contemplate it again. Contemplate each task ONCE.n
+                                CRITICAL: You MUST work effectively towards the ONE single CURRENT PRIME OBJECTIVE listed at the top of your task list. Cross-reference what you have learned with what you want to do to accomplish this specific endpoint. Do not scatter focus.n
                                 CRITICAL: Tasks MUST be ordered sequentially by importance using a numbered list (1., 2., 3.).n
                                 CRITICAL: You MUST verify the exact number of items on the list before arranging them, and make sure there are the EXACT SAME number of items after the sort, plus any new ones you added.n
                                 Alternatively, generate an `internal_monologue` pushing these objectives forward.", current_tasks);

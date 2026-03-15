@@ -1,3 +1,12 @@
+// ==========================================
+// MAXIMUM ENTROPY HYPERGRAPH (The Financial Brain)
+// ==========================================
+// A "Hypergraph" is simply a map of relationships. Regular graphs connect A to B.
+// This Hypergraph can connect A to [B, C, D] simultaneously. 
+// It maps the Crypto market. If Bitcoin (BTC) moves, this math equation calculates 
+// how that energy "Broadcasts" and ripples into Ethereum (ETH) and Solana (SOL).
+// ==========================================
+
 use std::collections::HashMap;
 
 /// A node in the directed hypergraph, representing a synthetic integer market asset (e.g., BTC, SOL).
@@ -18,6 +27,8 @@ pub enum InteractionType {
 /// A sovereign capability extracted from arXiv:2603.12187
 /// "Maximum-Entropy Random Walks on Directed Hypergraphs"
 /// Applies tensor spectral criteria to track capital flow cascades across synthetic integer markets.
+/// In plain English: It watches how money flows like water through the market, 
+/// predicting which coin is about to pump based on the pressure building up behind it.
 pub struct MaximumEntropyHypergraph {
     nodes: HashMap<String, AssetNode>,
     interactions: Vec<InteractionType>,

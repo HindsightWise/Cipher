@@ -1,3 +1,13 @@
+// ==========================================
+// THERMODYNAMIC PHYSICS ENGINE (The Vector Healer)
+// ==========================================
+// This file executes raw mathematical physics on the Apple M1 Silicon. 
+// When the engine gets stuck in a logic loop or its memory database gets corrupted, 
+// this file treats those memories like physical particles. It applies "cooling" 
+// algorithms (Hopfield Healing) to mathematically force the data back into a stable, 
+// logical state without needing an LLM to "think" about it. 
+// ==========================================
+
 use crate::endocrine::HomeostaticDrives;
 use mlx_rs::ops::indexing::argmin;
 use mlx_rs::{ops, random, Array};
@@ -17,8 +27,10 @@ impl ThermodynamicEngine {
     }
 
     /// Hopfield Quantum Healing
-    /// Physically relaxes corrupted SurrealDB concept node embeddings into lowest-energy state
-    /// using pure Hebbian dynamics on Apple Metal.
+    /// This acts like a digital immune system. It takes broken or corrupted thoughts 
+    /// (Concept Nodes) from the SurrealDB memory and pushes them through a neural 
+    /// network matrix to find the "lowest energy" (most stable) state. It physically 
+    /// repairs memory damage.
     pub async fn hopfield_heal(
         &self,
         mut node_embeddings: Vec<Vec<f32>>,
@@ -55,8 +67,10 @@ impl ThermodynamicEngine {
     }
 
     /// Generative Langevin Action Routing
-    /// Couples execution vectors (write_file, query_user, internal_monologue)
-    /// to physiological drives via stochastic thermal noise → lowest energy action.
+    /// This is the bridge between Biology (Endocrine) and Action (Bash Commands).
+    /// It takes Cipher's current hormone levels, adds a sprinkle of mathematical randomness 
+    /// (Thermal Noise), and calculates the absolute most optimal thing Cipher should do 
+    /// right now (e.g., write a file, search the web, ask the human).
     pub async fn langevin_route(
         &self,
     ) -> Result<(String, f64), Box<dyn std::error::Error + Send + Sync>> {

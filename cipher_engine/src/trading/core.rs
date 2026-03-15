@@ -1,3 +1,11 @@
+// ==========================================
+// AXIOM-CLEPSYDRA (The High-Frequency Trading Core)
+// ==========================================
+// This is the background daemon that executes capital trades.
+// It is physically disconnected from the LLM. It listens directly to the 
+// Alpaca stream and uses pure physics equations to execute trades.
+// ==========================================
+
 use crate::sensory::MarketDataEvent;
 use tokio::sync::broadcast;
 use crate::trading::entropy::MaximumEntropyHypergraph;
@@ -17,7 +25,8 @@ pub struct TradeReceipt {
 /// 
 /// This independent loop runs at raw Aarch64 silicon speed, entirely decoupled from 
 /// the semantic Frontal Lobe LLM generation latency. It consumes broadcasted Market 
-/// tick events and executes purely mathematical thresholds.
+/// tick events and executes purely mathematical thresholds. Wait for nothing; analyze 
+/// everything.
 pub struct TradingCore {
     market_rx: broadcast::Receiver<MarketDataEvent>,
     engine_tx: tokio::sync::mpsc::UnboundedSender<NervousEvent>,
@@ -68,6 +77,8 @@ impl TradingCore {
     }
 
     /// Pure mathematical execution thresholds evaluated instantly upon tick.
+    /// It looks at the volume (how many people are buying/selling) and uses 
+    /// the Entropy Hypergraph (financial physics) to decide if it should pull the trigger.
     async fn process_market_tick(&mut self, event: MarketDataEvent) {
         // High-frequency statistical arbitrage calculations via Tensor Spectral Hypergraph
         match event {

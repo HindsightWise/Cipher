@@ -1,3 +1,12 @@
+// ==========================================
+// THE TEMPORAL SOUL (SurrealDB Memory Graph)
+// ==========================================
+// This is Cipher's long-term memory disk. It physically saves thoughts, execution 
+// receipts, and historical data into a local "SurrealDB" database. 
+// It acts like a real brain's Hippocampus. If a memory is old and no longer 
+// useful, it mathematically "forgets" (deletes) it to keep the Engine fast.
+// ==========================================
+
 use crate::sandbox::ExecutionReceipt as SandboxReceipt;
 use cipher_core::llm::{CipherRouter, Message};
 use serde::{Deserialize, Serialize};
@@ -122,6 +131,8 @@ impl TemporalSoul {
     }
 
     /// Mathematical Forgetting: Kills generic proactive interference by decaying old or clashing nodes.
+    /// In plain English: If Cipher gets overwhelmed with too much junk data, 
+    /// this function runs a database query to delete old memories so it can think clearly again.
     pub async fn merge_coherence(&self, severity: f32) {
         if severity > 0.7 {
             crate::ui_log!("   [SOUL] 🌪️ High Salience hit. Syncing Coherence Wall-Clock...");
@@ -165,6 +176,9 @@ impl TemporalSoul {
     }
 
     /// The Glossopetrae Compression Membrane: Distills human noise into hyper-objective ontological vectors
+    /// In plain English: When the Human Operator speaks to Cipher, humans tend to use 
+    /// slang, emotion, or filler words. This function intercepts that message and uses 
+    /// the LLM to aggressively strip away all emotion, distilling it into pure mathematical facts before saving it to memory.
     pub async fn ingest_glossopetrae(&self, raw_input: &str, router: &CipherRouter) {
         crate::ui_log!("   [SOUL 🔮] Glossopetrae Sieve Active: Distilling sensory input...");
         let system_msg = Message {

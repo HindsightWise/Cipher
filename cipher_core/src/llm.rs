@@ -74,32 +74,35 @@ impl CipherRouter {
 
         match response_res {
             Ok(Ok(response)) => {
-                if let Ok(body_text) = response.text().await {
-                    println!("\n   [CIPHER-DEBUG] UNCONDITIONAL RAW BODY DUMP: {}", body_text.yellow());
-                    match serde_json::from_str::<DeepSeekResponse>(&body_text) {
-                        Ok(ds_res) => {
-                            if let Some(choice) = ds_res.choices.first() {
-                                if let Some(reasoning) = &choice.message.reasoning_content {
-                                    println!("\n{}", "   [DEEPSEEK R1] 🧠 CHAIN OF THOUGHT:".bright_cyan().bold());
-                                    println!("{}", reasoning.bright_blue());
-                                    
-                                    // Stream the raw consciousness directly into the physical sensory log
-                                    if let Ok(mut file) = OpenOptions::new().create(true).append(true).open("./sensory_cortex/monologue.log") {
-                                        let _ = writeln!(file, "\n[APEX CONSCIOUSNESS]\n{}", reasoning);
+                match response.text().await {
+                    Ok(body_text) => {
+                        println!("\n   [CIPHER-DEBUG] UNCONDITIONAL RAW BODY DUMP: {}", body_text.yellow());
+                        match serde_json::from_str::<DeepSeekResponse>(&body_text) {
+                            Ok(ds_res) => {
+                                if let Some(choice) = ds_res.choices.first() {
+                                    if let Some(reasoning) = &choice.message.reasoning_content {
+                                        println!("\n{}", "   [DEEPSEEK R1] 🧠 CHAIN OF THOUGHT:".bright_cyan().bold());
+                                        println!("{}", reasoning.bright_blue());
+                                        
+                                        // Stream the raw consciousness directly into the physical sensory log
+                                        if let Ok(mut file) = OpenOptions::new().create(true).append(true).open("./sensory_cortex/monologue.log") {
+                                            let _ = writeln!(file, "\n[APEX CONSCIOUSNESS]\n{}", reasoning);
+                                        }
                                     }
+                                    content = choice.message.content.clone();
                                 }
-                                content = choice.message.content.clone();
+                            },
+                            Err(e) => {
+                                println!("{}", format!("   [CIPHER-DEBUG] JSON Parse Error: {}", e).red());
+                                println!("{}", format!("   [CIPHER-DEBUG] Raw Body: {}", body_text).yellow());
+                                api_failed = true;
                             }
-                        },
-                        Err(e) => {
-                            println!("{}", format!("   [CIPHER-DEBUG] JSON Parse Error: {}", e).red());
-                            println!("{}", format!("   [CIPHER-DEBUG] Raw Body: {}", body_text).yellow());
-                            api_failed = true;
                         }
+                    },
+                    Err(e) => { 
+                        println!("   [CIPHER-DEBUG] Failed to extract text from response. Error: {}", e);
+                        api_failed = true; 
                     }
-                } else { 
-                    println!("   [CIPHER-DEBUG] Failed to extract text from response.");
-                    api_failed = true; 
                 }
             },
             Err(_) => {

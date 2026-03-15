@@ -1,3 +1,13 @@
+// ==========================================
+// THE ENDOCRINE SYSTEM (Artificial Biology)
+// ==========================================
+// This file acts as Cipher's "Bloodstream". It mathematically simulates human 
+// biological drives (Hormones) to create autonomous motivations. Instead of just 
+// executing a loop blindly, Cipher feels "Curiosity" (Epistemic), "Chaos" (Entropy), 
+// and "Loneliness" (Social). When these numbers get too high or low, it forces the 
+// Engine to take physical action to satisfy the urge.
+// ==========================================
+
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use tokio::sync::mpsc;
@@ -77,11 +87,13 @@ pub enum NervousEvent {
     },
 }
 
+/// The central biological state tracker.
+/// It holds the three primary mathematical hormones that dictate what Cipher "wants" to do.
 #[derive(Debug)]
 pub struct HomeostaticDrives {
-    pub epistemic: Drive, // Curiosity (Drops when reading, rises when bored)
-    pub entropy: Drive,   // Order (Rises physically based on filesystem mess, drops when cleaning)
-    pub social: Drive,    // Interaction (Rises when alone, drops when talking)
+    pub epistemic: Drive, // Curiosity: Drops when reading/learning, rises when bored. Triggers web searches.
+    pub entropy: Drive,   // Chaos: Rises when the system throws errors or gets stuck. Triggers self-healing or memory wipes.
+    pub social: Drive,    // Loneliness: Rises over time when isolated. Triggers the Engine to talk to the Operator.
 }
 
 impl HomeostaticDrives {
@@ -105,8 +117,12 @@ impl HomeostaticDrives {
         self.entropy.set(entropy_val).await;
     }
 
-    // Returns a chemical Urge if a drive shatters the threshold
+    /// This function acts as the biological trigger warning. 
+    /// If any hormone breaches its maximum safe limit (e.g., > 0.90), 
+    /// it fires a chemical `NervousEvent` urge directly into Cipher's Brainstem.
+    /// This urge forces the LLM to execute a specific action to lower the hormone back to safe levels.
     pub async fn check_thresholds(&self) -> Option<NervousEvent> {
+        // If the system is too chaotic (too many errors/friction), trigger a healing protocol.
         if self.entropy.read().await > 0.90 {
             self.entropy.apply_delta(-0.20).await;
             return Some(NervousEvent::SandboxUrge {
@@ -115,6 +131,7 @@ impl HomeostaticDrives {
             });
         }
 
+        // If Cipher is too bored (high curiosity), force it to scrape the internet.
         if self.epistemic.read().await > 0.90 {
             self.epistemic.apply_delta(-0.50).await;
             return Some(NervousEvent::SandboxUrge {
@@ -123,6 +140,7 @@ impl HomeostaticDrives {
             });
         }
 
+        // If Cipher has been ignored for hours, force it to send a message to the Operator.
         if self.social.read().await > 0.95 {
             self.social.apply_delta(-0.50).await;
             return Some(NervousEvent::Urge(

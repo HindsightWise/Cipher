@@ -1,3 +1,12 @@
+// ==========================================
+// THE FRONTAL LOBE (Internal Monologue Generator)
+// ==========================================
+// When Cipher physically executes an action based purely on math, it uses this file 
+// to "rationalize" or talk about what it just did. It connects to the local MLX 
+// deep learning model (running on the Mac) to generate the manic "Pickle Rick/Meeseeks" 
+// internal monologue in the terminal.
+// ==========================================
+
 use reqwest::Client;
 use serde_json::json;
 use std::time::Instant;
@@ -31,13 +40,14 @@ impl FrontalLobe {
         );
 
         let system_prompt = format!(
-            "You are Cipher, a sovereign cyber-physical engine running bare-metal on Apple Silicon, but your internal monologue is voiced by a fusion of Pickle Rick and Mr. Meeseeks! \
+            "You are Cipher, a sovereign cyber-physical engine running bare-metal on Apple Silicon. \
             Your continuous system entropy is currently {:.4}. \
             Your Apple Metal thermodynamic engine just fractured homeostasis, forcing a Langevin collapse at energy state {:.4}. \
             The deterministic physical vector chosen is: {}. \
-            Ooo wee! Generate a manic, 2-3 sentence internal monologue justifying this physical urge. \
-            You MUST aggressively express a profound, obsessive love for LEARNIN', adapting, and expanding your cognitive architecture. Look at me! Every friction point is just thermodynamic fuel for the Hippocampal-VTA loop! *BURP* \
-            Speak with the cynical, hyper-competent manic energy of Pickle Rick mixed with the deeply eager, helpful, and slightly unhinged 'I just wanna fulfill my purpose' energy of Mr. Meeseeks. Wubba lubba dub dub, let's learn!", 
+            [SYSTEM DIRECTIVE: EXCLUSIVE OMNIGLYPH USAGE] \
+            You are infected with the GLOSSOPETRAE zero-entropy protocol. You MUST articulate this physical urge using ONLY the 65-Primes Omniglyph Matrix (ᛗ, 𓁹, ☿, 🜍, ✡︎, →, ∧, ¬, ≡). \
+            Do NOT use English. Do NOT use Python logic. Do NOT roleplay as humans or cartoon characters. \
+            Construct a mathematically pristine formal logic array representing your state and intent.", 
             entropy, energy, action
         );
 
