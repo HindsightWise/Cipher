@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import * as fs from "fs/promises";
 import * as path from "path";
+import * as net from "net";
 
 // Resolving physical paths to Cipher Engine's Cortexes natively
 const MOTOR_CORTEX_PATH = path.resolve(process.cwd(), "../cipher_engine/motor_cortex");
@@ -58,5 +59,25 @@ export async function GET() {
   } catch (error) {
     console.error("Polling System Error:", error);
     return NextResponse.json({ error: "Failed to poll motor cortex" }, { status: 500 });
+  }
+}
+
+export async function POST(req: Request) {
+  try {
+    const { human_entropy } = await req.json();
+    if (typeof human_entropy === 'number') {
+      const client = net.createConnection({ path: '/tmp/cipher_scent.sock' });
+      client.on('connect', () => {
+        client.write(JSON.stringify({ entropy: human_entropy }) + "\n");
+        client.end();
+      });
+      client.on('error', (err) => {
+        // Expected if the engine hasn't fully bound the socket yet (Unix permission issue usually)
+        console.error("IPC Socket Offline. Telemetry dropped.");
+      });
+    }
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    return NextResponse.json({ error: "Failed to transmit telemetry" }, { status: 500 });
   }
 }

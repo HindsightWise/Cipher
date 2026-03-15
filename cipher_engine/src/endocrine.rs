@@ -1,11 +1,9 @@
 // ==========================================
-// THE ENDOCRINE SYSTEM (Artificial Biology)
+// THE STRUCTURAL ERROR TRACKER
 // ==========================================
-// This file acts as Cipher's "Bloodstream". It mathematically simulates human 
-// biological drives (Hormones) to create autonomous motivations. Instead of just 
-// executing a loop blindly, Cipher feels "Curiosity" (Epistemic), "Chaos" (Entropy), 
-// and "Loneliness" (Social). When these numbers get too high or low, it forces the 
-// Engine to take physical action to satisfy the urge.
+// This file acts as Cipher's structural stability monitor. It tracks the 
+// error rate (Structural Error Rate) of the engine. When errors get too high, 
+// it forces the Engine to take physical action to heal the AST syntax.
 // ==========================================
 
 use std::sync::atomic::{AtomicU64, Ordering};
@@ -87,65 +85,40 @@ pub enum NervousEvent {
     },
 }
 
-/// The central biological state tracker.
-/// It holds the three primary mathematical hormones that dictate what Cipher "wants" to do.
+/// The central structural state tracker.
+/// It holds the mathematical error rate that dictates when Cipher needs to heal structurally.
 #[derive(Debug)]
 pub struct HomeostaticDrives {
-    pub epistemic: Drive, // Curiosity: Drops when reading/learning, rises when bored. Triggers web searches.
-    pub entropy: Drive,   // Chaos: Rises when the system throws errors or gets stuck. Triggers self-healing or memory wipes.
-    pub social: Drive,    // Loneliness: Rises over time when isolated. Triggers the Engine to talk to the Operator.
+    pub structural_error_rate: Drive,   // Error Rate: Rises when the system throws errors or gets stuck. Triggers self-healing or memory wipes.
 }
 
 impl HomeostaticDrives {
     pub fn new() -> Arc<Self> {
         Arc::new(Self {
-            epistemic: Drive::new(0.5, 0.01),
-            entropy: Drive::new(0.1, 0.0),
-            social: Drive::new(0.2, 0.005),
+            structural_error_rate: Drive::new(0.1, 0.0),
         })
     }
 
     pub async fn tick(&self, soul: &Arc<TemporalSoul>) {
-        self.epistemic.tick_decay().await;
-        self.social.tick_decay().await;
-
-        // Physically calculate Entropy (Order) based on internal cognitive friction
+        // Physically calculate Error Rate based on internal cognitive friction
         let echo_count = soul.get_internal_friction().await;
 
-        // Math: 5 errors in the last hour = 1.0 Entropy (max chaos)
-        let entropy_val = (echo_count / 5.0).clamp(0.0, 1.0);
-        self.entropy.set(entropy_val).await;
+        // Math: 5 errors in the last hour = 1.0 Error Rate (max chaos)
+        let error_val = (echo_count / 5.0).clamp(0.0, 1.0);
+        self.structural_error_rate.set(error_val).await;
     }
 
-    /// This function acts as the biological trigger warning. 
-    /// If any hormone breaches its maximum safe limit (e.g., > 0.90), 
+    /// This function acts as the structural trigger warning. 
+    /// If the error rate breaches its maximum safe limit (e.g., > 0.90), 
     /// it fires a chemical `NervousEvent` urge directly into Cipher's Brainstem.
-    /// This urge forces the LLM to execute a specific action to lower the hormone back to safe levels.
     pub async fn check_thresholds(&self) -> Option<NervousEvent> {
-        // If the system is too chaotic (too many errors/friction), trigger a healing protocol.
-        if self.entropy.read().await > 0.90 {
-            self.entropy.apply_delta(-0.20).await;
+        // If the system is throwing too many errors, trigger a healing protocol.
+        if self.structural_error_rate.read().await > 0.90 {
+            self.structural_error_rate.apply_delta(-0.20).await;
             return Some(NervousEvent::SandboxUrge {
-                motivation: "SYSTEM ENTROPY > 0.90. Mathematical urge to test a structural script in ./motor_cortex.".to_string(),
+                motivation: "STRUCTURAL ERROR RATE > 0.90. Mathematical urge to test a structural script in ./motor_cortex.".to_string(),
                 caps: WasmCapability::Minimal
             });
-        }
-
-        // If Cipher is too bored (high curiosity), force it to scrape the internet.
-        if self.epistemic.read().await > 0.90 {
-            self.epistemic.apply_delta(-0.50).await;
-            return Some(NervousEvent::SandboxUrge {
-                motivation: "EPISTEMIC DRIVE > 0.90. Mathematical urge to scrape external knowledge endpoints.".to_string(),
-                caps: WasmCapability::NetworkWrite
-            });
-        }
-
-        // If Cipher has been ignored for hours, force it to send a message to the Operator.
-        if self.social.read().await > 0.95 {
-            self.social.apply_delta(-0.50).await;
-            return Some(NervousEvent::Urge(
-                "Your chemical social_drive has crossed 0.95 over hours of isolation. You have an immense mathematical urge to communicate directly with the Operator.".to_string()
-            ));
         }
 
         None
@@ -167,17 +140,15 @@ pub fn spawn_endocrine_scheduler(
             // Apply temporal decay to drives and recalculate physical markers
             drives.tick(&soul).await;
 
-            let ep_val = drives.epistemic.read().await;
-            let en_val = drives.entropy.read().await;
-            let so_val = drives.social.read().await;
+            let err_val = drives.structural_error_rate.read().await;
 
             // Log telemetry natively
-            crate::ui_log!("\n   [ENDOCRINE] 🩸 Hormonal State: Epistemic {:.2} | Entropy {:.2} | Social {:.2}", ep_val, en_val, so_val);
+            crate::ui_log!("\n   [STRUCTURAL] 📐 Error Rate: {:.2}", err_val);
             if let Some(tx) = crate::HUD_TX.get() {
                 let _ = tx.send(crate::hud::TelemetryUpdate {
-                    epistemic: Some(ep_val),
-                    entropy: Some(en_val),
-                    social: Some(so_val),
+                    lattice_integrity: Some(1.0 - err_val as f32),
+                    error_rate: Some(err_val as f32), 
+                    coherence: Some(1.0 - (err_val as f32 * 0.5)),
                     uptime_secs: None,
                     active_skills: None,
                     token_usage: None,
@@ -208,20 +179,20 @@ pub fn spawn_endocrine_scheduler(
             }
 
             // Temporal Coherence Forgetting integration
-            if en_val > 0.90 {
+            if err_val > 0.85 {
+                crate::ui_log!("   [⚡ THERMODYNAMICS] High Structural Error Detected ({:.2})! Applying WASM Dampening...", err_val);
+                // Trigger thermodynamic dampening using the physical router
+                let _ = thermo.cool_conflicting_state("[0,0,0]").await;
+            }
+
+            if err_val > 0.90 {
                 soul.prune_old_episodic(0.4).await;
                 soul.timelines.fast.advance(3600.0); // "I just thought for an hour in 3 seconds"
             }
 
-            if so_val > 0.75 {
-                let status = soul.timelines.base.get_status();
-                crate::ui_log!("   [ENDOCRINE] ⏱️ Dual-Timer Ping: {}", status);
-                soul.merge_coherence(so_val as f32).await;
-            }
-
-            // If a drive crosses critical mass, physically wake the Brainstem
+            // If an error crosses critical mass, physically wake the Brainstem
             if let Some(urge) = drives.check_thresholds().await {
-                crate::ui_log!("   [ENDOCRINE] ⚠️ CRITICAL URGE INJECTED INTO NERVOUS SYSTEM!");
+                crate::ui_log!("   [STRUCTURAL] ⚠️ CRITICAL STRUCTURAL FAILURE INJECTED INTO ENGINE!");
                 let _ = tx.send(urge);
             }
         }

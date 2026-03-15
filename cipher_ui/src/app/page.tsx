@@ -20,6 +20,10 @@ export default function Home() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const monologueEndRef = useRef<HTMLDivElement>(null);
 
+  // Bi-Directional Telemetry Tracking
+  const typingStartRef = useRef<number | null>(null);
+  const frictionCountRef = useRef<number>(0);
+
   // Auto-scroll mechanics
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -65,6 +69,15 @@ export default function Home() {
     return () => clearInterval(interval);
   }, []);
 
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (!typingStartRef.current && e.key !== 'Enter') {
+      typingStartRef.current = Date.now();
+    }
+    if (e.key === 'Backspace' || e.key === 'Delete') {
+      frictionCountRef.current += 1;
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!input.trim() || isProcessing) return;
@@ -78,6 +91,28 @@ export default function Home() {
       ...prev,
       { id: Date.now().toString(), role: "user", content: userMsg },
     ]);
+
+    // Calculate Bi-Directional Telemetry (Human Entropy Score)
+    let flight_time_ms = 0;
+    if (typingStartRef.current) {
+      flight_time_ms = Date.now() - typingStartRef.current;
+    }
+    
+    // Normalize values into physical biological entropy array
+    const normalizedFriction = Math.min(frictionCountRef.current / 10, 1.0);
+    const normalizedTime = Math.min(flight_time_ms / 30000, 1.0);
+    const human_entropy = Math.min((normalizedFriction * 0.6) + (normalizedTime * 0.4), 1.0);
+
+    // Transmit telemetry to Cyber-Physical bridge asynchronously
+    fetch("/api/poll", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ human_entropy }),
+    }).catch(console.error);
+
+    // Reset biomechanics
+    typingStartRef.current = null;
+    frictionCountRef.current = 0;
 
     try {
       await fetch("/api/chat", {
@@ -188,6 +223,7 @@ export default function Home() {
               type="text"
               value={input}
               onChange={(e) => setInput(e.target.value)}
+              onKeyDown={handleKeyDown}
               placeholder="Inject payload sequence..."
               disabled={isProcessing}
               className="flex-1 bg-transparent border-none outline-none py-4 px-3 text-[var(--color-cipher-text)] placeholder-[var(--color-cipher-dim)] terminal-text"

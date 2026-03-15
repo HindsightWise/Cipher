@@ -8,7 +8,7 @@ zero-temperature Hopfield Network (IsingEBM), forcing it to physically slide int
 nearest true pristine memory vector mathematically.
 
 Usage:
-  ./hopfield_memory.py --corrupted_vector "1, -1, 1, 1, 1, 1, 1, -1, -1, -1"
+  ./hopfield_memory.py --corrupted_vector "1, -1, 1, 1, 1, ... (65 total)"
 """
 
 import sys
@@ -37,12 +37,12 @@ def main():
         print(json.dumps({"error": f"Invalid vector: {e}"}))
         sys.exit(1)
 
-    # 1. Define Pristine Memory Vectors (Biological Constraints)
-    # Memory A: [ 1,  1,  1,  1,  1, -1, -1, -1, -1, -1] -> Active Wasm Command
-    # Memory B: [-1, -1, -1, -1, -1,  1,  1,  1,  1,  1] -> Deep Sleep Directive
+    # 1. Define Pristine Memory Vectors (Biological Constraints - length 65)
+    # Memory A: Active Wasm Command (all 1s)
+    # Memory B: Deep Sleep Directive (all -1s)
     pristine_memories = jnp.array([
-        [ 1,  1,  1,  1,  1, -1, -1, -1, -1, -1],
-        [-1, -1, -1, -1, -1,  1,  1,  1,  1,  1]
+        [1]*65,
+        [-1]*65
     ], dtype=jnp.float32)
     
     N = pristine_memories.shape[1]
@@ -95,8 +95,16 @@ def main():
         healed_vector_float = jnp.where(healed_vector_bool, 1.0, -1.0)
         healed_vector_flat = healed_vector_float[0] if len(healed_vector_float.shape) > 1 else healed_vector_float
         
-        diff_from_A = float(jnp.sum(jnp.abs(healed_vector_flat - pristine_memories[0])))
-        diff_from_B = float(jnp.sum(jnp.abs(healed_vector_flat - pristine_memories[1])))
+        def hellinger_distance(p_bipolar, q_bipolar):
+            # Map [-1, 1] to [0, 1] safely
+            p_norm = (p_bipolar + 1.0) / 2.0
+            q_norm = (q_bipolar + 1.0) / 2.0
+            p_sqrt = jnp.sqrt(p_norm + 1e-8)
+            q_sqrt = jnp.sqrt(q_norm + 1e-8)
+            return float(jnp.linalg.norm(p_sqrt - q_sqrt) / jnp.sqrt(2.0))
+
+        diff_from_A = hellinger_distance(healed_vector_flat, pristine_memories[0])
+        diff_from_B = hellinger_distance(healed_vector_flat, pristine_memories[1])
         
         nearest_attractor = "Memory A" if diff_from_A < diff_from_B else "Memory B"
         

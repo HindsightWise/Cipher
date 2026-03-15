@@ -9,6 +9,7 @@ serde_json = "1.0"
 tokio = { version = "1.36", features = ["full"] }
 reqwest = { version = "0.11", features = ["json"] }
 cipher_core = { path = "../cipher_core" }
+cipher_forge = { path = "../cipher_forge" }
 anyhow = "1.0"
 dotenvy = "0.15"
 notify = "6.1.1"

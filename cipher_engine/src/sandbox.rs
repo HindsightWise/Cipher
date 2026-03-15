@@ -44,6 +44,7 @@ impl SafeHands {
         wasm_bytes: &[u8],
         resonance: f32,
         args: Vec<String>,
+        acaptcha_sig: &str,
     ) -> anyhow::Result<ExecutionReceipt> {
         let start = Instant::now();
 
@@ -55,6 +56,14 @@ impl SafeHands {
         }
 
         let module = Module::new(&self.engine, wasm_bytes)?;
+
+        // 🔒 Cryptographic Motor Cortex: aCAPTCHA Verification
+        let ast_payload = args.join(" ");
+        if !cipher_core::crypto::aion_gateway::verify_acaptcha(&ast_payload, acaptcha_sig) {
+            anyhow::bail!(
+                "Security Violation: aCAPTCHA Mathematical Signature Verification Failed."
+            );
+        }
 
         let mut linker: Linker<HostContext> = Linker::new(&self.engine);
         // Bind WASI preview1 to the Linker

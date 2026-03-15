@@ -234,12 +234,27 @@ impl TemporalSoul {
             .as_secs();
         let receipt_id = format!("receipt_{}", current_unix);
 
+        use std::collections::hash_map::DefaultHasher;
+        use std::hash::{Hash, Hasher};
+        // AION Loom: Serialize the AST log down to a 65-bit integer array
+        let mut hasher = DefaultHasher::new();
+        receipt.output.hash(&mut hasher);
+        let hash_val = hasher.finish();
+        
+        let mut arr_65 = Vec::with_capacity(65);
+        for i in 0..64 {
+            arr_65.push(if (hash_val & (1 << i)) != 0 { 1 } else { -1 });
+        }
+        // Bit 65 is deterministic based on success
+        arr_65.push(if receipt.success { 1 } else { -1 });
+        let serialized_65_bit_ast = format!("{:?}", arr_65);
+
         let success_str = if receipt.success { "SUCCESS" } else { "PANIC" };
         let content = format!(
-            "WASM EXECUTION [{}]: Hash: {} | Output: {}",
+            "WASM EXECUTION [{}]: Hash: {} | 65_PRIME_AST: {}",
             success_str,
             receipt.hash,
-            receipt.output.replace("'", "\\'")
+            serialized_65_bit_ast
         );
 
         // If it's a panic, create an ECHO cluster node (high friction teaching node)

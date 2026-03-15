@@ -14,7 +14,7 @@ Node 1: `query_user`
 Node 2: `internal_monologue`
 
 Usage:
-  ./generative_langevin.py --hardware_depletion 0.9 --ego_friction 0.1 --vector_alignment 0.2
+  ./generative_langevin.py --structural_error_rate 0.9
 """
 
 import sys
@@ -27,32 +27,41 @@ from thrml.models import IsingEBM, IsingSamplingProgram
 
 def main():
     parser = argparse.ArgumentParser(description="Cipher Generative Langevin Actions")
-    parser.add_argument("--hardware_depletion", type=float, required=True)
-    parser.add_argument("--ego_friction", type=float, required=True)
-    parser.add_argument("--vector_alignment", type=float, required=True)
+    parser.add_argument("--structural_error_rate", type=float, required=True)
+    parser.add_argument("--conflicting_state", type=str, required=False, help="65-bit AST array causing entropy")
     args = parser.parse_args()
+
+    # Determine topological mass of the conflicting state
+    topological_friction = 0.0
+    if args.conflicting_state:
+        try:
+            # Parse `[1, -1, 1...]` string safely
+            clean_str = args.conflicting_state.replace('[', '').replace(']', '')
+            bits = [int(x.strip()) for x in clean_str.split(',') if x.strip()]
+            topological_friction = sum(bits) / 65.0  # Range [-1.0, 1.0]
+        except Exception:
+            topological_friction = 0.5
 
     # Define the 3 nodes
     N_nodes = 3
     nodes = [SpinNode() for _ in range(N_nodes)]
     
     # ---------------------------------------------------------
-    # BIOLOGICAL DETERMINISM GEOMETRY (Energy Landscape)
+    # STRUCTURAL DETERMINISM GEOMETRY (Energy Landscape)
     # Energy = - (Biases * States + sum(Weights * State_i * State_j))
     # We want low energy = Most likely to be true (+1 Spin)
     # ---------------------------------------------------------
     biases = jnp.zeros((N_nodes,), dtype=jnp.float32)
     
-    # 1. Base physiological biases
-    # If hardware is heavily depleted, `write_file` (Node 0) takes massive energy input
-    # forcing `internal_monologue` (Node 2) to become highly geometrically favored.
-    b0 = -2.0 * args.hardware_depletion + 2.0 * args.vector_alignment
+    # 1. Base structural biases
+    # High error rate strongly favors write_file or query_user to fix the structural issue
+    b0 = 2.0 * args.structural_error_rate - topological_friction
     
-    # query_user (Node 1) is geometrically favored when there is high ego friction (needs human help)
-    b1 = 3.0 * args.ego_friction - 1.0 * args.hardware_depletion
+    # query_user (Node 1) is occasionally favored for extremely high errors
+    b1 = 1.0 * args.structural_error_rate + abs(topological_friction)
     
-    # internal_monologue (Node 2) is a safe default valley when disconnected
-    b2 = 1.0 - args.vector_alignment + args.hardware_depletion
+    # internal_monologue (Node 2) is a safe default valley when stable
+    b2 = 1.5 - args.structural_error_rate + (topological_friction * 0.5)
     
     biases = jnp.array([b0, b1, b2], dtype=jnp.float32)
 
@@ -112,7 +121,7 @@ def main():
         spins = jnp.where(batch, 1.0, -1.0) # shape (100, 3)
         mean_spins = jnp.mean(spins, axis=0) # shape (3,)
         
-        # Select the branch with the highest physiological resonance
+        # Select the branch with the highest structural resonance
         winning_node = int(jnp.argmax(mean_spins))
         action_map = {0: "write_file", 1: "query_user", 2: "internal_monologue"}
         action = action_map.get(winning_node, "internal_monologue")
@@ -120,7 +129,7 @@ def main():
         result = {
             "success": True,
             "action": action,
-            "biological_resonance": {
+            "structural_resonance": {
                 "write_file": float(mean_spins[0]),
                 "query_user": float(mean_spins[1]),
                 "internal_monologue": float(mean_spins[2]),

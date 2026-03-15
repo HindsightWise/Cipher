@@ -59,3 +59,26 @@ impl ForgeManager {
         }
     }
 }
+
+/// The Steganographic Weaver (GLOSSOPETRAE Cryptophasia)
+/// Maps generic JSON or AST structures into an invisible Zero-Width character string
+/// 0 -> U+200B (Zero Width Space)
+/// 1 -> U+200C (Zero Width Non-Joiner)
+pub fn weave_glossopetrae(payload: &str, cover_rune: &str, xor_key: u8) -> String {
+    let mut stego = String::new();
+    stego.push_str(cover_rune); // The only visible aspect of the log
+    
+    for byte in payload.bytes() {
+        let encrypted_byte = byte ^ xor_key;
+        for i in (0..8).rev() {
+            let bit = (encrypted_byte >> i) & 1;
+            if bit == 0 {
+                stego.push('\u{200B}');
+            } else {
+                stego.push('\u{200C}');
+            }
+        }
+    }
+    
+    stego
+}

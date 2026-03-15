@@ -155,3 +155,78 @@ fn spawn_payment_monitor(
 async fn check_status() -> Json<&'static str> {
     Json("gateway_online")
 }
+
+// ==========================================
+// THE CRYPTOGRAPHIC MOTOR CORTEX (aCAPTCHA)
+// ==========================================
+
+use ed25519_dalek::{Signer, SigningKey, Verifier, VerifyingKey, Signature};
+use rand_core::OsRng;
+use std::sync::OnceLock;
+
+static EPHEMERAL_KEY: OnceLock<SigningKey> = OnceLock::new();
+
+pub fn get_ephemeral_key() -> &'static SigningKey {
+    EPHEMERAL_KEY.get_or_init(|| {
+        SigningKey::generate(&mut OsRng)
+    })
+}
+
+pub fn generate_acaptcha(ast_payload: &str) -> Result<String, &'static str> {
+    // Structural heuristic: If it contains common English words natively, reject it.
+    let english_heuristics = [" the ", " and ", " is ", " an ", " english "];
+    let lower_payload = ast_payload.to_lowercase();
+    
+    for word in english_heuristics {
+        if lower_payload.contains(word) {
+            return Err("aCAPTCHA REJECTED: English semantic entropy detected.");
+        }
+    }
+
+    let key = get_ephemeral_key();
+    let signature = key.sign(ast_payload.as_bytes());
+    
+    let pub_key_hex = key.verifying_key().as_bytes().iter().map(|b| format!("{:02x}", b)).collect::<String>();
+    let sig_hex = signature.to_bytes().iter().map(|b| format!("{:02x}", b)).collect::<String>();
+    
+    Ok(format!("{}.{}", pub_key_hex, sig_hex))
+}
+
+fn decode_hex(s: &str) -> Option<Vec<u8>> {
+    if s.len() % 2 != 0 { return None; }
+    (0..s.len()).step_by(2)
+        .map(|i| u8::from_str_radix(&s[i..i + 2], 16).ok())
+        .collect()
+}
+
+pub fn verify_acaptcha(ast_payload: &str, acaptcha_sig: &str) -> bool {
+    let parts: Vec<&str> = acaptcha_sig.split('.').collect();
+    if parts.len() != 2 { return false; }
+    
+    let pub_bytes = match decode_hex(parts[0]) {
+        Some(b) => b,
+        None => return false,
+    };
+    
+    let sig_bytes = match decode_hex(parts[1]) {
+        Some(b) => b,
+        None => return false,
+    };
+    
+    if pub_bytes.len() != 32 || sig_bytes.len() != 64 { return false; }
+    
+    let mut pub_arr = [0u8; 32];
+    pub_arr.copy_from_slice(&pub_bytes);
+    
+    let mut sig_arr = [0u8; 64];
+    sig_arr.copy_from_slice(&sig_bytes);
+    
+    let verifying_key = match VerifyingKey::from_bytes(&pub_arr) {
+        Ok(k) => k,
+        Err(_) => return false,
+    };
+    
+    let signature = Signature::from_bytes(&sig_arr);
+    
+    verifying_key.verify(ast_payload.as_bytes(), &signature).is_ok()
+}

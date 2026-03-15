@@ -1,3 +1,5 @@
+pub mod automata;
+
 use anyhow::{Result, anyhow};
 use serde::{Deserialize, Serialize};
 use reqwest::Client;

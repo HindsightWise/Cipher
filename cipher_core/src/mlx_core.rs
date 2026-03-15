@@ -1,6 +1,7 @@
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use anyhow::Result;
+use crate::llm::automata::VisiblyRecursiveAutomaton;
 
 #[derive(Serialize)]
 pub struct Message {
@@ -15,6 +16,8 @@ pub struct MlxRequest {
     pub stream: bool,
     pub max_tokens: u32,
     pub temperature: f32,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub logit_bias: Option<std::collections::HashMap<String, f32>>,
 }
 
 #[derive(Deserialize, Debug)]
@@ -47,12 +50,17 @@ impl MlxBridge {
     }
 
     pub async fn query(&self, model: &str, prompt: &str) -> Result<String> {
+        let automaton = VisiblyRecursiveAutomaton::new();
+        let mask = automaton.prune_logits(31980);
+        println!("   [⚡ CIPHER] CFG Mask Applied. {} tokens pruned.", mask.len());
+
         let req = MlxRequest {
             model: model.to_string(),
             messages: vec![Message { role: "user".to_string(), content: prompt.to_string() }],
             stream: false,
             max_tokens: 1024,
             temperature: 0.7,
+            logit_bias: Some(mask),
         };
 
         if let Ok(Ok(res)) = tokio::time::timeout(

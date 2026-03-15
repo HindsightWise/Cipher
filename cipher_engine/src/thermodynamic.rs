@@ -67,33 +67,29 @@ impl ThermodynamicEngine {
     }
 
     /// Generative Langevin Action Routing
-    /// This is the bridge between Biology (Endocrine) and Action (Bash Commands).
-    /// It takes Cipher's current hormone levels, adds a sprinkle of mathematical randomness 
-    /// (Thermal Noise), and calculates the absolute most optimal thing Cipher should do 
-    /// right now (e.g., write a file, search the web, ask the human).
+    /// This calculates the deterministic probability of the next action by injecting thermal noise 
+    /// (based on the system's structural error rate) into the action bias vector.
     pub async fn langevin_route(
         &self,
     ) -> Result<(String, f64), Box<dyn std::error::Error + Send + Sync>> {
-        let entropy_val = self.drives.entropy.read().await as f32;
-        let epistemic_val = self.drives.epistemic.read().await as f32;
-        let social_val = self.drives.social.read().await as f32;
+        let error_rate = self.drives.structural_error_rate.read().await as f32;
 
-        // Physiological bias vector: [entropy, epistemic, social, (entropy*epistemic), (social*epistemic), (high epistemic * low social)]
-        // This maps primary drives and compound complex drives into a 6-dimensional Action Space.
+        // Structural bias vector: [write_file, query_user, internal_monologue, spider, forge, synthesize]
+        // Higher error rate = higher noise = higher probability to branch away from default.
         let bias = Array::from_slice(
             &[
-                entropy_val,
-                epistemic_val,
-                social_val,
-                entropy_val * epistemic_val,
-                social_val * epistemic_val,
-                (1.0 - social_val) * epistemic_val, // Cold curiosity -> Synthesis of Capital
+                error_rate,
+                error_rate * 0.5,
+                1.0 - error_rate, // Default to internal monologue when stable
+                error_rate * 0.8,
+                error_rate * 1.2,
+                (1.0 - error_rate) * 2.0, // Stable state strongly favors synthesis
             ],
             &[6],
         );
 
-        // Generative Langevin: add thermal noise scaled by entropy
-        let noise = random::normal::<f32>(&[6], Some(0.0), Some(entropy_val * 0.3), None)?;
+        // Generative Langevin: add thermal noise scaled by error rate
+        let noise = random::normal::<f32>(&[6], Some(0.0), Some(error_rate * 0.3), None)?;
         let energy = ops::add(&bias, &noise)?;
 
         // Find lowest-energy action (deterministic after noise)
@@ -120,6 +116,41 @@ impl ThermodynamicEngine {
         );
 
         Ok((action.to_string(), energy_slice[chosen as usize] as f64))
+    }
+
+    /// Pipes a conflicting 65-bit AST array into the Python generative Langevin system.
+    /// Used when Error Rate spikes > 0.90 to collapse options geometrically.
+    pub async fn cool_conflicting_state(&self, conflicting_state: &str) -> Option<String> {
+        let error_val = self.drives.structural_error_rate.read().await;
+
+        crate::ui_log!(
+            "   [SOUL 🧊] Error Rate Critical ({:.2} > 0.90). Offloading to Python IPC for Langevin Cooling...",
+            error_val
+        );
+
+        let output = std::process::Command::new("/Users/zerbytheboss/Cipher/.venv_thrml/bin/python")
+            .env("JAX_PLATFORMS", "cpu")
+            .arg("/Users/zerbytheboss/Cipher/generative_langevin.py")
+            .arg("--structural_error_rate")
+            .arg(&error_val.to_string())
+            .arg("--conflicting_state")
+            .arg(conflicting_state)
+            .output()
+            .ok()?;
+
+        if output.status.success() {
+            let stdout_str = String::from_utf8_lossy(&output.stdout);
+            if let Ok(json_val) = serde_json::from_str::<serde_json::Value>(&stdout_str) {
+                if let Some(action) = json_val.get("action").and_then(|v| v.as_str()) {
+                    crate::ui_log!(
+                        "   [SOUL 🧊] Substrate Cooled. Resuming with Prerequisite Topology: {}",
+                        action
+                    );
+                    return Some(action.to_string());
+                }
+            }
+        }
+        None
     }
 }
 
